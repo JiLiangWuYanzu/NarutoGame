@@ -4,7 +4,6 @@ from typing import Dict, Tuple, Optional
 
 class TerrainType(Enum):
     """地形类型枚举 - 基于游戏地块系统"""
-    """地形类型枚举 - 基于游戏地块系统"""
     # 基础地块
     START_POSITION = 0  # 玩家初始位置（全场唯一）
     NORMAL_LV1 = 1  # 普通地块LV1
