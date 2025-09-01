@@ -1,0 +1,3349 @@
+{
+  "map_width": 100,
+  "map_height": 100,
+  "start_position": [
+    -16,
+    49
+  ],
+  "tiles": [
+    {
+      "q": -47,
+      "r": 30,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -47,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -46,
+      "r": 29,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -46,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -45,
+      "r": 28,
+      "terrain_type": 32,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -45,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -44,
+      "r": 27,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -44,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -44,
+      "r": 54,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -44,
+      "r": 55,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -44,
+      "r": 56,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 25,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 26,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 53,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 56,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -43,
+      "r": 57,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -42,
+      "r": 24,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -42,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -42,
+      "r": 52,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -42,
+      "r": 57,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -42,
+      "r": 58,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -41,
+      "r": 23,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -41,
+      "r": 31,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -41,
+      "r": 51,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -41,
+      "r": 58,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 21,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 22,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 30,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 50,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 58,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -40,
+      "r": 59,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 20,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 21,
+      "terrain_type": 11,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 22,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 23,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 24,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 30,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 38,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 39,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 40,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 41,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 43,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 44,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 49,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -39,
+      "r": 59,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 19,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 20,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 21,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 23,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 29,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 35,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 36,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 37,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 40,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 42,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 44,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 45,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 46,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 47,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 48,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 58,
+      "terrain_type": 35,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -38,
+      "r": 59,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 15,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 16,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 17,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 22,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 23,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 29,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 32,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 33,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 34,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 40,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 42,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -37,
+      "r": 59,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 13,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 14,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 17,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 20,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 21,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 28,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 30,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 31,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 39,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 41,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -36,
+      "r": 58,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 17,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 19,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 27,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 29,
+      "terrain_type": 9,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 38,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 40,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -35,
+      "r": 58,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 8,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 14,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 15,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 16,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 27,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 29,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 37,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 39,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -34,
+      "r": 57,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 13,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 17,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 19,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 20,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 21,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 26,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 28,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 36,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 38,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 55,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -33,
+      "r": 56,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 21,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 22,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 23,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 24,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 25,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 27,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 35,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 37,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -32,
+      "r": 54,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 25,
+      "terrain_type": 33,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 27,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 34,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 36,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -31,
+      "r": 53,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 18,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 19,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 20,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 21,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 22,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 23,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 25,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 26,
+      "terrain_type": 39,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 33,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 34,
+      "terrain_type": 34,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 35,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -30,
+      "r": 52,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 17,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 23,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 25,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -29,
+      "r": 51,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 2,
+      "terrain_type": 36,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 8,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 9,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 16,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 22,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 24,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -28,
+      "r": 50,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 16,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 17,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 18,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 19,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 22,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 24,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -27,
+      "r": 49,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 19,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 20,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 21,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 23,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 47,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -26,
+      "r": 48,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 14,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 15,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 16,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 17,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 20,
+      "terrain_type": 10,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 21,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 22,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -25,
+      "r": 46,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -24,
+      "r": 13,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -24,
+      "r": 17,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -24,
+      "r": 18,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -24,
+      "r": 19,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -24,
+      "r": 45,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -23,
+      "r": 13,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -23,
+      "r": 43,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -23,
+      "r": 44,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 13,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 14,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 15,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 16,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 17,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -22,
+      "r": 43,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -21,
+      "r": 16,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -21,
+      "r": 42,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 1,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 9,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 10,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 11,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 12,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 13,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 14,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 15,
+      "terrain_type": 10,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -20,
+      "r": 41,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 35,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 36,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 39,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -19,
+      "r": 40,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -18,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -18,
+      "r": 34,
+      "terrain_type": 39,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -18,
+      "r": 36,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -18,
+      "r": 37,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -18,
+      "r": 38,
+      "terrain_type": 22,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -17,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -17,
+      "r": 33,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -17,
+      "r": 34,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 29,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 30,
+      "terrain_type": 9,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 31,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 32,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 36,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 37,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 38,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 39,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 40,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 41,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 42,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 43,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 46,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 47,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 48,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -16,
+      "r": 49,
+      "terrain_type": 0,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 13,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 14,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 15,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 16,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 29,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 35,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 43,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 46,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 47,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -15,
+      "r": 48,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 1,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 12,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 16,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 29,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 30,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 31,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 34,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 43,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 46,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -14,
+      "r": 47,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 0,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 11,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 15,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 31,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 32,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 33,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 43,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -13,
+      "r": 46,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": -2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": -1,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 0,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 1,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 9,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 10,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 13,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 14,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 43,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -12,
+      "r": 46,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": -4,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": -3,
+      "terrain_type": 31,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": -2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 12,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 43,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -11,
+      "r": 45,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": -5,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": -4,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 43,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -10,
+      "r": 44,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": -6,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": -4,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": -3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -9,
+      "r": 43,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": -7,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": -3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": -2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -8,
+      "r": 42,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": -8,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": -2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": -1,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": 4,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": 9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -7,
+      "r": 41,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": -8,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": -1,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 0,
+      "terrain_type": 13,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 7,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 8,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -6,
+      "r": 40,
+      "terrain_type": 1,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": -9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": -3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": -2,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 5,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 6,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 7,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 8,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 10,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 11,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 12,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -5,
+      "r": 40,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": -9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": -6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": -5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": -4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 3,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 4,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 12,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 13,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 14,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -4,
+      "r": 39,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": -9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": -7,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": -6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 14,
+      "terrain_type": 38,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 19,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 20,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 21,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 22,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -3,
+      "r": 38,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": -9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": -8,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 3,
+      "terrain_type": 20,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 4,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 5,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 6,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 7,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 8,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 9,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 12,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 13,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 18,
+      "terrain_type": 3,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 22,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 23,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 24,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -2,
+      "r": 37,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": -9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": 24,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": 25,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": -1,
+      "r": 36,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 11,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 25,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 26,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 27,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 28,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 29,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 0,
+      "r": 35,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 29,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 30,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 31,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 1,
+      "r": 34,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 10,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 16,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 17,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 18,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 19,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 20,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 21,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 31,
+      "terrain_type": 21,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 32,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 2,
+      "r": 33,
+      "terrain_type": 2,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 3,
+      "terrain_type": 5,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 8,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 9,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 13,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 14,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 15,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 3,
+      "r": 21,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 3,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 7,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 12,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 20,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 4,
+      "r": 21,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 5,
+      "r": 3,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 5,
+      "r": 5,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 5,
+      "r": 6,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 5,
+      "r": 18,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 5,
+      "r": 19,
+      "terrain_type": 4,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 6,
+      "r": 3,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    },
+    {
+      "q": 6,
+      "r": 4,
+      "terrain_type": 6,
+      "attributes": {},
+      "conquered": false
+    }
+  ]
+}
