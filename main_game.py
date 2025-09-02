@@ -456,27 +456,44 @@ class AITrainingInterface:
         """启动训练"""
         print("启动PPO训练...")
 
-        # 实际训练代码（需要取消注释）
-        """
         try:
-            from rl_trainer_enhanced import PPOTrainer
+            from rl_trainer_enhanced import PPOTrainer, setup_device
             import threading
-            
+
             self.is_training = True
-            
+
             def train_thread():
                 try:
-                    self.trainer = PPOTrainer()
+                    # 设置设备
+                    device = setup_device()
+
+                    # 创建训练器，传入device参数
+                    self.trainer = PPOTrainer(
+                        device=device,
+                        lr=1e-4,
+                        gamma=0.99,
+                        eps_clip=0.2,
+                        epochs=10,
+                        batch_size=64,
+                        n_workers=4,
+                        use_amp=True
+                    )
+
+                    # 开始训练
                     self.trainer.train(total_episodes=self.total_episodes)
+
                 except Exception as e:
                     print(f"训练过程中出错: {e}")
+                    import traceback
+                    traceback.print_exc()  # 打印完整错误信息便于调试
                 finally:
                     self.is_training = False
                     print("训练结束")
-                
+
             thread = threading.Thread(target=train_thread)
-            thread.daemon = True  # 设置为守护线程，主程序退出时自动结束
+            thread.daemon = True
             thread.start()
+
         except ImportError as e:
             print(f"导入训练模块失败: {e}")
             self.is_training = False
@@ -485,12 +502,6 @@ class AITrainingInterface:
             print(f"启动训练失败: {e}")
             self.is_training = False
             return
-        """
-
-        # 模拟训练进度（仅用于演示）
-        self.is_training = True
-        self.current_episode = 0
-        self.training_progress = 0
 
     def handle_click(self, pos):
         """处理点击"""

@@ -1,7 +1,7 @@
 """
 六边形地图策略游戏 - 游戏玩法系统（中文版）
 实现队伍管理、移动、征服、资源管理等核心玩法
-更新版本：实现新规则系统
+更新版本：实现新规则系统 + 撤销功能 + 存档系统
 """
 import pygame
 import json
@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Dict, List, Tuple, Optional, Set
 from dataclasses import dataclass
 from collections import deque
+from datetime import datetime
 
 # 导入字体管理器
 from font_manager import get_font_manager, get_font, get_small_font, get_medium_font, get_large_font
@@ -64,8 +65,8 @@ class GamePlaySystem:
         self.max_days = 91  # 修改：6.13-9.11共91天
 
         # 玩家数据 - 根据新规则调整
-        self.experience = 100  # 初始1级 = 100经验
-        self.level = 1
+        self.experience = 0  # 初始经验为0
+        self.level = 1  # 初始1级
         self.food = 6800  # 修改：初始粮草6800
         self.conquest_score = 1000  # 修改：初始征服积分1000
 
@@ -86,6 +87,16 @@ class GamePlaySystem:
         self.teams: List[Team] = []
         self.current_team_index = 0
         self.max_teams = 1  # 当前最大队伍数
+
+        # 撤销系统
+        self.action_history = []  # 存储操作历史
+        self.max_history = 10  # 最多保存10步
+
+        # 存档系统
+        self.save_slots = 3  # 3个存档槽位
+        self.current_save_slot = 1  # 当前选择的存档槽位
+        self.show_save_load_menu = False  # 是否显示存档菜单
+        self.save_load_buttons = []  # 初始化存档按钮列表
 
         # 【重要：先初始化相机和视图相关属性】
         self.zoom = 1.0
@@ -125,6 +136,245 @@ class GamePlaySystem:
         self.team_animation_offset = 0
 
         self.should_return_to_menu = False  # 返回菜单标志
+
+    def save_state(self, action_type: str):
+        """保存当前状态到历史记录"""
+        state = {
+            'action_type': action_type,
+            'team_positions': {i: team.position for i, team in enumerate(self.teams)},
+            'team_actions': {i: team.action_points for i, team in enumerate(self.teams)},
+            'food': self.food,
+            'conquest_score': self.conquest_score,
+            'experience': self.experience,
+            'level': self.level,
+            'conquered_tiles': self.conquered_tiles.copy(),
+            'thunder_god_items': self.thunder_god_items,
+            'current_team_index': self.current_team_index,
+            'current_day': self.current_day,
+            # 修复：将枚举转换为字符串
+            'treasures_conquered': {t.value if hasattr(t, 'value') else str(t) for t in self.treasures_conquered},
+            'has_treasure_buff': self.has_treasure_buff,
+            'weekly_exp_quota': self.weekly_exp_quota,
+            'weekly_exp_claimed': self.weekly_exp_claimed,
+            'weekly_claim_count': self.weekly_claim_count,
+        }
+
+        self.action_history.append(state)
+        if len(self.action_history) > self.max_history:
+            self.action_history.pop(0)
+
+    def undo_last_action(self):
+        """撤销上一步操作"""
+        if not self.action_history:
+            self.add_message("没有可撤销的操作", "warning")
+            return False
+
+        # 获取上一个状态
+        state = self.action_history.pop()
+
+        # 恢复状态
+        for i, team in enumerate(self.teams):
+            if i in state['team_positions']:
+                team.position = state['team_positions'][i]
+                team.action_points = state['team_actions'][i]
+
+        self.food = state['food']
+        self.conquest_score = state['conquest_score']
+        self.experience = state['experience']
+        self.level = state['level']
+        self.conquered_tiles = state['conquered_tiles']
+        self.thunder_god_items = state['thunder_god_items']
+        self.current_team_index = state['current_team_index']
+
+        # 修复：将字符串转换回枚举
+        treasures_set = set()
+        for treasure_str in state['treasures_conquered']:
+            try:
+                terrain_type = TerrainType(treasure_str)
+                treasures_set.add(terrain_type)
+            except:
+                # 如果转换失败，尝试通过名称查找
+                for terrain in TerrainType:
+                    if terrain.value == treasure_str or str(terrain) == treasure_str:
+                        treasures_set.add(terrain)
+                        break
+        self.treasures_conquered = treasures_set
+
+        self.has_treasure_buff = state['has_treasure_buff']
+        self.weekly_exp_quota = state['weekly_exp_quota']
+        self.weekly_exp_claimed = state['weekly_exp_claimed']
+        self.weekly_claim_count = state['weekly_claim_count']
+
+        # 更新地图上的征服状态
+        for pos, tile in self.hex_map.items():
+            tile.conquered = pos in self.conquered_tiles
+
+        self.add_message(f"已撤销: {state['action_type']}", "info")
+        return True
+
+    def save_game(self, slot: int = 1):
+        """保存游戏进度"""
+        save_data = {
+            # 基本游戏数据
+            'current_day': self.current_day,
+            'experience': self.experience,
+            'level': self.level,
+            'food': self.food,
+            'conquest_score': self.conquest_score,
+            'thunder_god_items': self.thunder_god_items,
+
+            # 秘宝系统 - 修复：将枚举转换为字符串
+            'treasures_conquered': [t.value if hasattr(t, 'value') else str(t) for t in self.treasures_conquered],
+            'has_treasure_buff': self.has_treasure_buff,
+
+            # 周经验系统
+            'weekly_exp_quota': self.weekly_exp_quota,
+            'weekly_exp_claimed': self.weekly_exp_claimed,
+            'weekly_claim_count': self.weekly_claim_count,
+            'current_week': self.current_week,
+
+            # 队伍数据
+            'max_teams': self.max_teams,
+            'current_team_index': self.current_team_index,
+            'teams': [
+                {
+                    'id': team.id,
+                    'position': team.position,
+                    'action_points': team.action_points,
+                    'max_action_points': team.max_action_points,
+                    'is_active': team.is_active
+                }
+                for team in self.teams
+            ],
+
+            # 已征服地块
+            'conquered_tiles': list(self.conquered_tiles),
+
+            # 保存时间戳
+            'save_time': pygame.time.get_ticks(),
+            'real_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # 保存到文件
+        filename = f"save_slot_{slot}.json"
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+            self.add_message(f"游戏已保存到槽位 {slot}", "success")
+            print(f"游戏已保存: {filename}")
+            return True
+        except Exception as e:
+            self.add_message(f"保存失败: {str(e)}", "error")
+            print(f"保存失败: {e}")
+            return False
+
+    def load_game(self, slot: int = 1):
+        """加载游戏进度"""
+        filename = f"save_slot_{slot}.json"
+
+        if not os.path.exists(filename):
+            self.add_message(f"槽位 {slot} 没有存档", "error")
+            return False
+
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                save_data = json.load(f)
+
+            # 恢复基本数据
+            self.current_day = save_data['current_day']
+            self.experience = save_data['experience']
+            self.level = save_data['level']
+            self.food = save_data['food']
+            self.conquest_score = save_data['conquest_score']
+            self.thunder_god_items = save_data['thunder_god_items']
+
+            # 恢复秘宝系统 - 修复：将字符串转换回枚举
+            treasures_list = save_data.get('treasures_conquered', [])
+            self.treasures_conquered = set()
+            for treasure_str in treasures_list:
+                # 尝试将字符串转换为TerrainType枚举
+                try:
+                    terrain_type = TerrainType(treasure_str)
+                    self.treasures_conquered.add(terrain_type)
+                except:
+                    # 如果转换失败，尝试通过名称查找
+                    for terrain in TerrainType:
+                        if terrain.value == treasure_str or str(terrain) == treasure_str:
+                            self.treasures_conquered.add(terrain)
+                            break
+
+            self.has_treasure_buff = save_data['has_treasure_buff']
+
+            # 恢复周经验系统
+            self.weekly_exp_quota = save_data['weekly_exp_quota']
+            self.weekly_exp_claimed = save_data['weekly_exp_claimed']
+            self.weekly_claim_count = save_data['weekly_claim_count']
+            self.current_week = save_data['current_week']
+
+            # 恢复队伍数据
+            self.max_teams = save_data['max_teams']
+            self.current_team_index = save_data['current_team_index']
+            self.teams = []
+            for team_data in save_data['teams']:
+                team = Team(
+                    id=team_data['id'],
+                    position=tuple(team_data['position']),
+                    action_points=team_data['action_points'],
+                    max_action_points=team_data['max_action_points'],
+                    is_active=team_data['is_active']
+                )
+                self.teams.append(team)
+
+            # 恢复已征服地块
+            self.conquered_tiles = set(tuple(pos) for pos in save_data['conquered_tiles'])
+
+            # 更新地图上的征服状态
+            for pos, tile in self.hex_map.items():
+                tile.conquered = pos in self.conquered_tiles
+
+            # 清空撤销历史
+            self.action_history.clear()
+
+            # 聚焦到当前队伍
+            if self.teams:
+                self.center_camera_on_position(self.teams[self.current_team_index].position)
+
+            # 显示加载信息
+            save_time = save_data.get('real_time', '未知时间')
+            self.add_message(f"已加载存档 (保存于 {save_time})", "success")
+            print(f"游戏已加载: {filename}")
+
+            return True
+
+        except Exception as e:
+            self.add_message(f"加载失败: {str(e)}", "error")
+            print(f"加载失败: {e}")
+            return False
+
+    def quick_save(self):
+        """快速保存到槽位1"""
+        self.save_game(1)
+
+    def quick_load(self):
+        """快速加载槽位1"""
+        self.load_game(1)
+
+    def check_save_exists(self, slot: int) -> dict:
+        """检查存档是否存在并返回信息"""
+        filename = f"save_slot_{slot}.json"
+        if os.path.exists(filename):
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    save_data = json.load(f)
+                return {
+                    'exists': True,
+                    'day': save_data.get('current_day', 0),
+                    'level': save_data.get('level', 1),
+                    'time': save_data.get('real_time', '未知时间')
+                }
+            except:
+                return {'exists': False}
+        return {'exists': False}
 
     def get_day_of_week(self, day):
         """获取星期几（6.13是周五）
@@ -330,9 +580,8 @@ class GamePlaySystem:
 
     def calculate_level(self):
         """计算当前等级"""
-        self.level = self.experience // 100
-        if self.level < 1:
-            self.level = 1
+        # 等级 = 基础1级 + 经验带来的额外等级
+        self.level = 1 + (self.experience // 100)
 
     def check_team_unlock(self):
         """检查是否解锁新队伍 - 立即在当前位置生成"""
@@ -556,6 +805,9 @@ class GamePlaySystem:
             self.add_message(f"粮草不足！需要 {cost}", "error")
             return False
 
+        # 保存状态（新增）
+        self.save_state("移动")
+
         # 执行移动
         self.food -= cost
         team.position = target
@@ -581,6 +833,9 @@ class GamePlaySystem:
         if not has_conquered_neighbor:
             self.add_message("目标必须与已征服地块相邻！", "error")
             return False
+
+        # 保存状态（新增）
+        self.save_state("飞雷神传送")
 
         # 执行传送
         team.position = target
@@ -645,9 +900,14 @@ class GamePlaySystem:
             if team.action_points <= 0:
                 self.add_message("没有行动点数！", "error")
                 return False
-            team.action_points -= 1
+
+        # 保存状态（新增）
+        self.save_state("征服")
 
         # 执行征服
+        if tile.terrain_type != TerrainType.TENT:
+            team.action_points -= 1
+
         self.food -= food_cost
         self.conquest_score -= score_cost
         self.experience += exp_gain
@@ -694,6 +954,9 @@ class GamePlaySystem:
         if self.current_day >= self.max_days:
             self.game_state = GameState.GAME_OVER
             return
+
+        # 清空撤销历史（新的一天开始）
+        self.action_history.clear()
 
         self.current_day += 1
 
@@ -911,7 +1174,7 @@ class GamePlaySystem:
         return visible
 
     def draw_ui(self):
-        """绘制UI界面 - 修复按钮布局"""
+        """绘制UI界面 - 添加撤销按钮"""
         # UI背景
         ui_height = 180
         ui_rect = pygame.Rect(0, self.height - ui_height, self.width, ui_height)
@@ -999,12 +1262,14 @@ class GamePlaySystem:
         button_height = 30  # 减小按钮高度
         button_spacing = 5
 
-        # 存储按钮区域用于点击检测
+        # 存储按钮区域用于点击检测 - 每次绘制前清空
         self.buttons = []
 
         buttons_data = [
             ("切换队伍", (100, 150, 200), self.can_switch_team),
             ("征服地块", (200, 100, 100), self.can_conquer),
+            ("撤销", (200, 150, 100), lambda: len(self.action_history) > 0),  # 简化文本
+            ("存档/读档", (150, 200, 150), lambda: True),
             ("下一天", (100, 200, 100), lambda: True),
             ("领取经验", (200, 200, 100), lambda: self.weekly_exp_quota > 0),
             ("飞雷神", (200, 100, 200), lambda: self.thunder_god_items > 0),
@@ -1013,8 +1278,12 @@ class GamePlaySystem:
 
         # 两列布局
         for i, (text, color, can_use) in enumerate(buttons_data):
-            col = i % 2  # 0或1，决定在哪一列
-            row = i // 2  # 决定在第几行
+            if i < 4:  # 前4个按钮在第一列
+                col = 0
+                row = i
+            else:  # 后面的按钮在第二列
+                col = 1
+                row = i - 4
 
             button_x_pos = button_x + col * (button_width + button_spacing * 2)
             button_y_pos = y_offset + row * (button_height + button_spacing) + 20  # 添加顶部间距
@@ -1040,14 +1309,14 @@ class GamePlaySystem:
 
             # 绘制按钮文字
             text_color = (255, 255, 255) if is_enabled else (120, 120, 120)
-            text_surface = self.small_font.render(text, True, text_color)  # 使用小字体
+            text_surface = self.small_font.render(text, True, text_color)
             text_rect = text_surface.get_rect(center=button_rect.center)
             self.screen.blit(text_surface, text_rect)
 
-            # 存储按钮信息
+            # 存储按钮信息 - 直接使用原始文本作为action
             self.buttons.append({
                 'rect': button_rect,
-                'action': text,
+                'action': text,  # 直接使用原始文本
                 'enabled': is_enabled
             })
 
@@ -1063,17 +1332,30 @@ class GamePlaySystem:
         return team.position not in self.conquered_tiles
 
     def handle_mouse_click(self, pos):
-        """处理鼠标点击 - 合并版本"""
+        """处理鼠标点击"""
         x, y = pos
+
+        # 存档菜单点击处理
+        if self.show_save_load_menu:
+            if hasattr(self, 'save_load_buttons'):
+                for action, slot, rect in self.save_load_buttons:
+                    if rect.collidepoint(pos):
+                        if action == 'save':
+                            self.save_game(slot)
+                        elif action == 'load':
+                            self.load_game(slot)
+                        self.save_load_buttons = []
+                        self.show_save_load_menu = False
+                        return
+            return
 
         # 周经验界面点击处理
         if self.game_state == GameState.WEEKLY_EXP_CLAIM:
-            # 检查领取按钮
             window_width = 500
             window_height = 400
             window_x = (self.width - window_width) // 2
             window_y = (self.height - window_height) // 2
-            button_y = window_y + 260  # 与draw_weekly_exp_ui中保持一致
+            button_y = window_y + 260
 
             amounts = [100, 200, 300, 400, 500]
             button_width = 80
@@ -1088,14 +1370,12 @@ class GamePlaySystem:
 
                 if button_rect.collidepoint(pos):
                     if self.claim_weekly_exp(amount):
-                        # 成功领取后可以选择关闭界面
                         if self.weekly_exp_quota == 0:
                             self.game_state = GameState.PLAYING
             return
 
-        # 检查是否点击UI区域
+        # UI按钮点击处理
         if y > self.height - 180:
-            # 检查按钮点击
             if hasattr(self, 'buttons'):
                 for button in self.buttons:
                     if button['rect'].collidepoint(pos) and button['enabled']:
@@ -1103,9 +1383,8 @@ class GamePlaySystem:
                         return
             return
 
-        # 转换为六边形坐标
+        # 地图点击处理
         hex_pos = self.pixel_to_hex(x, y)
-
         if hex_pos in self.hex_map:
             # 飞雷神模式
             if self.thunder_god_mode:
@@ -1119,26 +1398,21 @@ class GamePlaySystem:
             # 正常模式
             if self.teams:
                 current_team = self.teams[self.current_team_index]
-
-                # 如果点击当前位置，尝试征服
                 if hex_pos == current_team.position:
                     if hex_pos not in self.conquered_tiles:
                         self.conquer_tile(current_team)
-                # 否则尝试移动
                 else:
                     self.move_team(current_team, hex_pos)
 
             self.selected_tile = hex_pos
 
     def handle_button_action(self, action):
-        """处理按钮动作"""
+        """处理按钮动作 - 添加存档功能"""
         if action == "切换队伍":
             if len(self.teams) > 1:
                 self.current_team_index = (self.current_team_index + 1) % len(self.teams)
                 team = self.teams[self.current_team_index]
                 self.add_message(f"切换到队伍 {team.id}", "info")
-
-                # 将相机移动到当前队伍
                 self.center_camera_on_position(team.position)
 
         elif action == "征服地块":
@@ -1146,10 +1420,18 @@ class GamePlaySystem:
                 current_team = self.teams[self.current_team_index]
                 self.conquer_tile(current_team)
 
+        elif action == "撤销":
+            self.undo_last_action()
+
+        elif action == "存档/读档":
+            # 只设置存档菜单标志
+            self.show_save_load_menu = True
+
         elif action == "下一天":
             self.next_day()
 
         elif action == "领取经验":
+            # 只在PLAYING状态下才打开周经验界面
             if self.game_state == GameState.PLAYING:
                 self.game_state = GameState.WEEKLY_EXP_CLAIM
 
@@ -1164,7 +1446,6 @@ class GamePlaySystem:
                     self.add_message("飞雷神模式关闭", "info")
 
         elif action == "返回菜单":
-            # 这个需要在 run 方法中处理，设置一个标志
             self.should_return_to_menu = True
 
     def draw_info_panel(self):
@@ -1240,23 +1521,6 @@ class GamePlaySystem:
                         move_color = (255, 100, 100)
                     move_surface = self.small_font.render(move_text, True, move_color)
                     self.screen.blit(move_surface, (panel_x + 10, y))
-
-    def draw_message(self):
-        """绘制消息"""
-        if self.message and self.message_timer > 0:
-            # 消息背景
-            text_surface = self.large_font.render(self.message, True, (255, 255, 255))
-            text_rect = text_surface.get_rect(center=(self.width // 2, 40))
-
-            # 背景
-            bg_rect = text_rect.inflate(40, 20)
-            bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
-            bg_surface.set_alpha(200)
-            bg_surface.fill((50, 50, 60))
-            self.screen.blit(bg_surface, bg_rect)
-
-            # 文字
-            self.screen.blit(text_surface, text_rect)
 
     def draw_weekly_exp_ui(self):
         """绘制周经验领取界面"""
@@ -1344,114 +1608,22 @@ class GamePlaySystem:
         close_rect = close_surface.get_rect(center=(self.width // 2, window_y + window_height - 30))
         self.screen.blit(close_surface, close_rect)
 
-    def handle_keyboard(self, key):
-        """处理键盘输入 - 修复版"""
-        # 先检查是否在周经验界面
-        if self.game_state == GameState.WEEKLY_EXP_CLAIM:
-            if key == pygame.K_ESCAPE or key == pygame.K_w:
-                self.game_state = GameState.PLAYING
-            # 数字键快捷领取
-            elif pygame.K_1 <= key <= pygame.K_5:
-                amount = (key - pygame.K_1 + 1) * 100
-                self.claim_weekly_exp(amount)
-            return
+    def draw_message(self):
+        """绘制消息"""
+        if self.message and self.message_timer > 0:
+            # 消息背景
+            text_surface = self.large_font.render(self.message, True, (255, 255, 255))
+            text_rect = text_surface.get_rect(center=(self.width // 2, 40))
 
-        # 游戏结束状态不处理其他按键
-        if self.game_state == GameState.GAME_OVER:
-            return
+            # 背景
+            bg_rect = text_rect.inflate(40, 20)
+            bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
+            bg_surface.set_alpha(200)
+            bg_surface.fill((50, 50, 60))
+            self.screen.blit(bg_surface, bg_rect)
 
-        # 正常游戏状态的按键处理
-        if key == pygame.K_TAB:
-            # 切换队伍
-            if len(self.teams) > 1:
-                self.current_team_index = (self.current_team_index + 1) % len(self.teams)
-                team = self.teams[self.current_team_index]
-                self.add_message(f"切换到队伍 {team.id}", "info")
-
-                # 将相机移动到当前队伍
-                target_x, target_y = self.hex_to_pixel(*team.position)
-                self.camera_x = self.width // 2 - (target_x - self.camera_x)
-                self.camera_y = self.height // 2 - (target_y - self.camera_y)
-
-        elif key == pygame.K_c:
-            # 征服当前地块
-            if self.teams:
-                current_team = self.teams[self.current_team_index]
-                self.conquer_tile(current_team)
-
-        elif key == pygame.K_n:
-            # 下一天
-            print("按下N键 - 进入下一天")  # 调试信息
-            self.next_day()
-
-        elif key == pygame.K_w:
-            # 打开周经验界面
-            print("按下W键 - 打开周经验界面")  # 调试信息
-            if self.game_state == GameState.PLAYING:
-                self.game_state = GameState.WEEKLY_EXP_CLAIM
-
-        elif key == pygame.K_t:
-            # 切换飞雷神模式
-            if self.thunder_god_items > 0:
-                self.thunder_god_mode = not self.thunder_god_mode
-                if self.thunder_god_mode:
-                    self.valid_thunder_targets = self.get_valid_thunder_targets()
-                    self.add_message(f"飞雷神模式开启，选择目标地块", "info")
-                else:
-                    self.valid_thunder_targets.clear()
-                    self.add_message("飞雷神模式关闭", "info")
-
-        elif key == pygame.K_SPACE:
-            # 聚焦到当前队伍
-            if self.teams:
-                team = self.teams[self.current_team_index]
-                target_x, target_y = self.hex_to_pixel(*team.position)
-                self.camera_x = self.width // 2 - (target_x - self.camera_x)
-                self.camera_y = self.height // 2 - (target_y - self.camera_y)
-
-        # 添加调试快捷键
-        elif key == pygame.K_F1:
-            # 调试信息
-            print(f"当前游戏状态: {self.game_state}")
-            print(f"当前天数: {self.current_day}/{self.max_days}")
-            print(f"队伍数量: {len(self.teams)}")
-            if self.teams:
-                team = self.teams[self.current_team_index]
-                print(f"当前队伍位置: {team.position}")
-                print(f"行动点: {team.action_points}/{team.max_action_points}")
-
-    def update(self, dt):
-        """更新游戏状态"""
-        # 更新动画
-        self.animation_timer += dt * 2
-
-        # 更新消息计时器
-        if self.message_timer > 0:
-            self.message_timer -= dt * 1000
-
-        # 检查游戏结束
-        if self.current_day >= self.max_days:
-            self.game_state = GameState.GAME_OVER
-
-    def draw(self):
-        """绘制游戏画面"""
-        # 清屏
-        self.screen.fill((30, 30, 40))
-
-        if self.game_state == GameState.GAME_OVER:
-            self.draw_game_over()
-        elif self.game_state == GameState.WEEKLY_EXP_CLAIM:
-            # 先绘制游戏场景
-            self.draw_map()
-            self.draw_ui()
-            # 再绘制周经验界面
-            self.draw_weekly_exp_ui()
-        else:
-            # 绘制游戏元素
-            self.draw_map()
-            self.draw_ui()
-            self.draw_info_panel()
-            self.draw_message()
+            # 文字
+            self.screen.blit(text_surface, text_rect)
 
     def draw_game_over(self):
         """绘制游戏结束画面"""
@@ -1480,6 +1652,271 @@ class GamePlaySystem:
                 stat_rect = stat_surface.get_rect(center=(self.width // 2, y))
                 self.screen.blit(stat_surface, stat_rect)
             y += 40
+
+    def draw_save_load_menu(self):
+        """绘制存档/读档菜单"""
+        # 背景遮罩
+        overlay = pygame.Surface((self.width, self.height))
+        overlay.set_alpha(200)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+
+        # 窗口
+        window_width = 600
+        window_height = 500
+        window_x = (self.width - window_width) // 2
+        window_y = (self.height - window_height) // 2
+
+        # 窗口背景
+        window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
+        pygame.draw.rect(self.screen, (40, 40, 50), window_rect)
+        pygame.draw.rect(self.screen, (100, 100, 110), window_rect, 3)
+
+        # 标题
+        title = "存档管理"
+        title_surface = self.large_font.render(title, True, (255, 215, 0))
+        title_rect = title_surface.get_rect(center=(self.width // 2, window_y + 40))
+        self.screen.blit(title_surface, title_rect)
+
+        # 存档槽位
+        slot_y = window_y + 100
+        mouse_pos = pygame.mouse.get_pos()
+
+        for slot in range(1, self.save_slots + 1):
+            slot_rect = pygame.Rect(window_x + 50, slot_y, window_width - 100, 80)
+
+            # 检查存档信息
+            save_info = self.check_save_exists(slot)
+
+            # 鼠标悬停高亮
+            if slot_rect.collidepoint(mouse_pos):
+                color = (60, 60, 70)
+            else:
+                color = (45, 45, 55)
+
+            pygame.draw.rect(self.screen, color, slot_rect)
+            pygame.draw.rect(self.screen, (80, 80, 90), slot_rect, 2)
+
+            # 显示存档信息
+            if save_info['exists']:
+                # 存档存在
+                slot_text = f"槽位 {slot}"
+                info_text = f"第 {save_info['day']} 天 | 等级 {save_info['level']} | {save_info['time']}"
+
+                slot_surface = self.font.render(slot_text, True, (255, 255, 255))
+                info_surface = self.small_font.render(info_text, True, (180, 180, 180))
+
+                self.screen.blit(slot_surface, (slot_rect.x + 20, slot_rect.y + 15))
+                self.screen.blit(info_surface, (slot_rect.x + 20, slot_rect.y + 45))
+
+                # 操作按钮
+                save_btn_rect = pygame.Rect(slot_rect.right - 200, slot_rect.y + 20, 80, 40)
+                load_btn_rect = pygame.Rect(slot_rect.right - 100, slot_rect.y + 20, 80, 40)
+
+                # 保存按钮
+                if save_btn_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, (100, 200, 100), save_btn_rect)
+                else:
+                    pygame.draw.rect(self.screen, (80, 160, 80), save_btn_rect)
+                pygame.draw.rect(self.screen, (100, 100, 110), save_btn_rect, 2)
+                save_text = self.small_font.render("覆盖", True, (255, 255, 255))
+                save_text_rect = save_text.get_rect(center=save_btn_rect.center)
+                self.screen.blit(save_text, save_text_rect)
+
+                # 加载按钮
+                if load_btn_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, (100, 150, 200), load_btn_rect)
+                else:
+                    pygame.draw.rect(self.screen, (80, 120, 160), load_btn_rect)
+                pygame.draw.rect(self.screen, (100, 100, 110), load_btn_rect, 2)
+                load_text = self.small_font.render("加载", True, (255, 255, 255))
+                load_text_rect = load_text.get_rect(center=load_btn_rect.center)
+                self.screen.blit(load_text, load_text_rect)
+
+                # 存储按钮信息用于点击检测
+                if not hasattr(self, 'save_load_buttons'):
+                    self.save_load_buttons = []
+                self.save_load_buttons.append(('save', slot, save_btn_rect))
+                self.save_load_buttons.append(('load', slot, load_btn_rect))
+            else:
+                # 空槽位
+                slot_text = f"槽位 {slot} - 空"
+                slot_surface = self.font.render(slot_text, True, (150, 150, 150))
+                self.screen.blit(slot_surface, (slot_rect.x + 20, slot_rect.y + 30))
+
+                # 保存按钮
+                save_btn_rect = pygame.Rect(slot_rect.right - 100, slot_rect.y + 20, 80, 40)
+                if save_btn_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, (100, 200, 100), save_btn_rect)
+                else:
+                    pygame.draw.rect(self.screen, (80, 160, 80), save_btn_rect)
+                pygame.draw.rect(self.screen, (100, 100, 110), save_btn_rect, 2)
+                save_text = self.small_font.render("保存", True, (255, 255, 255))
+                save_text_rect = save_text.get_rect(center=save_btn_rect.center)
+                self.screen.blit(save_text, save_text_rect)
+
+                if not hasattr(self, 'save_load_buttons'):
+                    self.save_load_buttons = []
+                self.save_load_buttons.append(('save', slot, save_btn_rect))
+
+            slot_y += 100
+
+        # 快捷键提示
+        hints = [
+            "F5: 快速保存 | F9: 快速加载 | ESC: 关闭菜单",
+            "快速存档使用槽位1"
+        ]
+        hint_y = window_y + window_height - 60
+        for hint in hints:
+            hint_surface = self.small_font.render(hint, True, (180, 180, 180))
+            hint_rect = hint_surface.get_rect(center=(self.width // 2, hint_y))
+            self.screen.blit(hint_surface, hint_rect)
+            hint_y += 25
+
+    def handle_keyboard(self, key):
+        """处理键盘输入 - 添加存档快捷键"""
+        # 先检查是否在周经验界面
+        if self.game_state == GameState.WEEKLY_EXP_CLAIM:
+            if key == pygame.K_ESCAPE or key == pygame.K_w:
+                self.game_state = GameState.PLAYING
+            # 数字键快捷领取
+            elif pygame.K_1 <= key <= pygame.K_5:
+                amount = (key - pygame.K_1 + 1) * 100
+                self.claim_weekly_exp(amount)
+            return
+
+        # 如果在存档菜单，ESC关闭
+        if self.show_save_load_menu:
+            if key == pygame.K_ESCAPE:
+                self.show_save_load_menu = False
+                self.save_load_buttons = []  # 清空按钮列表
+            elif key == pygame.K_F5:
+                # 在存档菜单中也允许快速保存
+                self.quick_save()
+            elif key == pygame.K_F9:
+                # 在存档菜单中也允许快速加载
+                self.quick_load()
+                self.show_save_load_menu = False  # 加载后关闭菜单
+            return
+
+        # 游戏结束状态不处理其他按键
+        if self.game_state == GameState.GAME_OVER:
+            return
+
+        # 存档快捷键
+        if key == pygame.K_F5:
+            # F5 快速保存
+            self.quick_save()
+        elif key == pygame.K_F9:
+            # F9 快速加载
+            self.quick_load()
+        elif key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+            # Ctrl+S 打开存档菜单 - 确保关闭其他界面
+            if self.game_state == GameState.WEEKLY_EXP_CLAIM:
+                self.game_state = GameState.PLAYING
+            self.show_save_load_menu = True
+
+        # 撤销快捷键
+        elif key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_CTRL:
+            # Ctrl+Z 撤销
+            self.undo_last_action()
+
+        # 正常游戏状态的按键处理
+        elif key == pygame.K_TAB:
+            # 切换队伍
+            if len(self.teams) > 1:
+                self.current_team_index = (self.current_team_index + 1) % len(self.teams)
+                team = self.teams[self.current_team_index]
+                self.add_message(f"切换到队伍 {team.id}", "info")
+
+                # 将相机移动到当前队伍
+                self.center_camera_on_position(team.position)
+
+        elif key == pygame.K_c:
+            # 征服当前地块
+            if self.teams:
+                current_team = self.teams[self.current_team_index]
+                self.conquer_tile(current_team)
+
+        elif key == pygame.K_n:
+            # 下一天
+            print("按下N键 - 进入下一天")  # 调试信息
+            self.next_day()
+
+        elif key == pygame.K_w:
+            # 打开周经验界面 - 确保关闭存档菜单
+            print("按下W键 - 打开周经验界面")  # 调试信息
+            if self.game_state == GameState.PLAYING:
+                self.show_save_load_menu = False
+                self.game_state = GameState.WEEKLY_EXP_CLAIM
+
+        elif key == pygame.K_t:
+            # 切换飞雷神模式
+            if self.thunder_god_items > 0:
+                self.thunder_god_mode = not self.thunder_god_mode
+                if self.thunder_god_mode:
+                    self.valid_thunder_targets = self.get_valid_thunder_targets()
+                    self.add_message(f"飞雷神模式开启，选择目标地块", "info")
+                else:
+                    self.valid_thunder_targets.clear()
+                    self.add_message("飞雷神模式关闭", "info")
+
+        elif key == pygame.K_SPACE:
+            # 聚焦到当前队伍
+            if self.teams:
+                team = self.teams[self.current_team_index]
+                self.center_camera_on_position(team.position)
+
+        # 添加调试快捷键
+        elif key == pygame.K_F1:
+            # 调试信息
+            print(f"当前游戏状态: {self.game_state}")
+            print(f"当前天数: {self.current_day}/{self.max_days}")
+            print(f"队伍数量: {len(self.teams)}")
+            print(f"撤销历史: {len(self.action_history)} 条记录")
+            print(f"存档菜单: {self.show_save_load_menu}")
+            if self.teams:
+                team = self.teams[self.current_team_index]
+                print(f"当前队伍位置: {team.position}")
+                print(f"行动点: {team.action_points}/{team.max_action_points}")
+
+    def update(self, dt):
+        """更新游戏状态"""
+        # 更新动画
+        self.animation_timer += dt * 2
+
+        # 更新消息计时器
+        if self.message_timer > 0:
+            self.message_timer -= dt * 1000
+
+        # 检查游戏结束
+        if self.current_day >= self.max_days:
+            self.game_state = GameState.GAME_OVER
+
+    def draw(self):
+        """绘制游戏画面"""
+        # 清屏
+        self.screen.fill((30, 30, 40))
+
+        # 基础场景总是绘制
+        self.draw_map()
+        self.draw_ui()
+
+        # 根据状态绘制不同的覆盖界面（互斥）
+        if self.game_state == GameState.GAME_OVER:
+            self.draw_game_over()
+        elif self.show_save_load_menu:
+            # 存档菜单优先级最高（除了游戏结束）
+            self.save_load_buttons = []
+            self.draw_save_load_menu()
+        elif self.game_state == GameState.WEEKLY_EXP_CLAIM:
+            # 周经验界面
+            self.draw_weekly_exp_ui()
+        else:
+            # 正常游戏界面的额外元素
+            if self.game_state == GameState.PLAYING:
+                self.draw_info_panel()
+                self.draw_message()
 
     def run(self):
         """游戏主循环"""
