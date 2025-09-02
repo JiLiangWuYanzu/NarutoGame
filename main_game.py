@@ -1,6 +1,6 @@
 """
 六边形地图策略游戏 - 主程序（中文版）
-包含主界面、地图编辑器、游戏模式和AI训练
+包含主界面、地图编辑器、游戏模式、AI训练和路线回放
 """
 import pygame
 import sys
@@ -18,13 +18,84 @@ from map_style_config import StyleConfig, TerrainType
 # 导入游戏系统
 from game_play_system import GamePlaySystem
 
+
+class MessageBox:
+    """消息弹窗"""
+    def __init__(self, screen, message, title="提示"):
+        self.screen = screen
+        self.message = message
+        self.title = title
+        self.width = 400
+        self.height = 200
+
+        # 字体
+        self.title_font = get_medium_font()
+        self.message_font = get_small_font()
+
+        # 位置（居中）
+        screen_width = screen.get_width()
+        screen_height = screen.get_height()
+        self.x = (screen_width - self.width) // 2
+        self.y = (screen_height - self.height) // 2
+
+        # 按钮
+        self.ok_button = pygame.Rect(
+            self.x + (self.width - 100) // 2,
+            self.y + self.height - 50,
+            100, 35
+        )
+
+    def draw(self):
+        """绘制消息框"""
+        # 背景遮罩
+        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
+        overlay.set_alpha(128)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+
+        # 弹窗背景
+        window_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        pygame.draw.rect(self.screen, (50, 50, 60), window_rect)
+        pygame.draw.rect(self.screen, (100, 100, 110), window_rect, 3)
+
+        # 标题
+        title_surf = self.title_font.render(self.title, True, (255, 215, 0))
+        title_rect = title_surf.get_rect(center=(self.x + self.width // 2, self.y + 30))
+        self.screen.blit(title_surf, title_rect)
+
+        # 消息
+        lines = self.message.split('\n')
+        y_offset = self.y + 70
+        for line in lines:
+            if line:  # 跳过空行
+                msg_surf = self.message_font.render(line, True, (200, 200, 200))
+                msg_rect = msg_surf.get_rect(center=(self.x + self.width // 2, y_offset))
+                self.screen.blit(msg_surf, msg_rect)
+            y_offset += 30
+
+        # 确定按钮
+        pygame.draw.rect(self.screen, (80, 120, 160), self.ok_button)
+        pygame.draw.rect(self.screen, (120, 160, 200), self.ok_button, 2)
+
+        ok_text = self.message_font.render("确定", True, (255, 255, 255))
+        ok_rect = ok_text.get_rect(center=self.ok_button.center)
+        self.screen.blit(ok_text, ok_rect)
+
+    def handle_click(self, pos):
+        """处理点击"""
+        if self.ok_button.collidepoint(pos):
+            return True  # 关闭弹窗
+        return False
+
+
 class GameState(Enum):
     """游戏状态枚举"""
     MAIN_MENU = "main_menu"
     MAP_EDITOR = "map_editor"
     GAME_PLAY = "game_play"
     GAME_SETTINGS = "game_settings"
-    AI_TRAINING = "ai_training"  # 新增：AI训练状态
+    AI_TRAINING = "ai_training"
+    ROUTE_REPLAY = "route_replay"
 
 
 class MainMenu:
@@ -46,10 +117,10 @@ class MainMenu:
 
         # 按钮设置
         self.button_width = 300
-        self.button_height = 80
-        self.button_spacing = 30
+        self.button_height = 70
+        self.button_spacing = 25
 
-        # 创建按钮（中文）- 添加AI训练按钮
+        # 创建按钮（中文）
         self.buttons = {
             'start_game': {
                 'text': '开始游戏',
@@ -61,8 +132,13 @@ class MainMenu:
                 'rect': None,
                 'hovered': False
             },
-            'ai_training': {  # 新增
+            'ai_training': {
                 'text': 'AI训练',
+                'rect': None,
+                'hovered': False
+            },
+            'route_replay': {
+                'text': '查看最优路线',
                 'rect': None,
                 'hovered': False
             },
@@ -83,9 +159,9 @@ class MainMenu:
     def _calculate_button_positions(self):
         """计算按钮位置"""
         total_height = len(self.buttons) * self.button_height + (len(self.buttons) - 1) * self.button_spacing
-        start_y = (self.height - total_height) // 2 + 50
+        start_y = (self.height - total_height) // 2 + 30
 
-        button_order = ['start_game', 'map_editor', 'ai_training', 'exit']  # 按钮顺序
+        button_order = ['start_game', 'map_editor', 'ai_training', 'route_replay', 'exit']
         for i, button_key in enumerate(button_order):
             button_x = (self.width - self.button_width) // 2
             button_y = start_y + i * (self.button_height + self.button_spacing)
@@ -168,19 +244,20 @@ class MainMenu:
         # 绘制标题（中文）
         title_text = "拳打飞图脚踢萧瑟"
         title_surface = self.title_font.render(title_text, True, (255, 215, 0))
-        title_rect = title_surface.get_rect(center=(self.width // 2, 150))
+        title_rect = title_surface.get_rect(center=(self.width // 2, 120))
 
         # 标题阴影
         shadow_surface = self.title_font.render(title_text, True, (50, 50, 60))
-        shadow_rect = shadow_surface.get_rect(center=(self.width // 2 + 3, 153))
+        shadow_rect = shadow_surface.get_rect(center=(self.width // 2 + 3, 123))
         self.screen.blit(shadow_surface, shadow_rect)
         self.screen.blit(title_surface, title_rect)
 
         # 绘制按钮
         for button_key, button in self.buttons.items():
             if button['rect']:
-                # AI训练按钮特殊颜色
+                # 特殊颜色处理
                 if button_key == 'ai_training':
+                    # AI训练按钮 - 紫色
                     if button['hovered']:
                         color = (140, 100, 180)
                         border_color = (255, 215, 0)
@@ -189,8 +266,18 @@ class MainMenu:
                         color = (100, 70, 130)
                         border_color = (150, 120, 180)
                         border_width = 2
+                elif button_key == 'route_replay':
+                    # 路线回放按钮 - 青色
+                    if button['hovered']:
+                        color = (80, 160, 140)
+                        border_color = (255, 215, 0)
+                        border_width = 3
+                    else:
+                        color = (60, 120, 100)
+                        border_color = (100, 160, 140)
+                        border_width = 2
                 else:
-                    # 普通按钮颜色
+                    # 普通按钮
                     if button['hovered']:
                         color = (80, 120, 160)
                         border_color = (255, 215, 0)
@@ -209,11 +296,16 @@ class MainMenu:
                 text_rect = text_surface.get_rect(center=button['rect'].center)
                 self.screen.blit(text_surface, text_rect)
 
-                # AI训练按钮添加小标签
+                # 添加小标签
                 if button_key == 'ai_training':
                     label_text = "PPO强化学习"
                     label_surface = self.small_font.render(label_text, True, (180, 180, 200))
-                    label_rect = label_surface.get_rect(center=(button['rect'].centerx, button['rect'].bottom + 15))
+                    label_rect = label_surface.get_rect(center=(button['rect'].centerx, button['rect'].bottom + 12))
+                    self.screen.blit(label_surface, label_rect)
+                elif button_key == 'route_replay':
+                    label_text = "回放AI路线"
+                    label_surface = self.small_font.render(label_text, True, (180, 200, 180))
+                    label_rect = label_surface.get_rect(center=(button['rect'].centerx, button['rect'].bottom + 12))
                     self.screen.blit(label_surface, label_rect)
 
         # 版本信息（中文）
@@ -236,8 +328,10 @@ class MainMenu:
                     return GameState.MAP_EDITOR
                 elif button_key == 'start_game':
                     return GameState.GAME_PLAY
-                elif button_key == 'ai_training':  # 新增
+                elif button_key == 'ai_training':
                     return GameState.AI_TRAINING
+                elif button_key == 'route_replay':
+                    return GameState.ROUTE_REPLAY
                 elif button_key == 'exit':
                     return 'exit'
         return None
@@ -341,12 +435,12 @@ class AITrainingInterface:
                 "训练将寻找获得最高经验值的路线",
                 "训练完成后会生成最优路线报告",
                 "",
-                "注意：训练需要几分钟时间"
+                "训练完成后可在主菜单选择'查看最优路线'回放"
             ]
 
             y = 450
             for text in info_texts:
-                if text:  # 跳过空行
+                if text:
                     text_surface = self.small_font.render(text, True, (150, 150, 150))
                     text_rect = text_surface.get_rect(center=(self.width // 2, y))
                     self.screen.blit(text_surface, text_rect)
@@ -360,36 +454,43 @@ class AITrainingInterface:
 
     def start_training(self):
         """启动训练"""
-        self.is_training = True
         print("启动PPO训练...")
 
+        # 实际训练代码（需要取消注释）
+        """
         try:
             from rl_trainer_enhanced import PPOTrainer
             import threading
-
+            
+            self.is_training = True
+            
             def train_thread():
-                self.trainer = PPOTrainer()
-                # 可以减少训练轮数用于测试
-                self.trainer.train(total_episodes=100)  # 先用100轮测试
-                self.is_training = False
-                print("训练完成！")
-
+                try:
+                    self.trainer = PPOTrainer()
+                    self.trainer.train(total_episodes=self.total_episodes)
+                except Exception as e:
+                    print(f"训练过程中出错: {e}")
+                finally:
+                    self.is_training = False
+                    print("训练结束")
+                
             thread = threading.Thread(target=train_thread)
+            thread.daemon = True  # 设置为守护线程，主程序退出时自动结束
             thread.start()
         except ImportError as e:
             print(f"导入训练模块失败: {e}")
             self.is_training = False
+            return
         except Exception as e:
-            print(f"训练出错: {e}")
+            print(f"启动训练失败: {e}")
             self.is_training = False
+            return
+        """
 
-    def update_progress(self, episode, exp):
-        """更新训练进度（由训练线程调用）"""
-        self.current_episode = episode
-        self.current_exp = exp
-        self.training_progress = episode / self.total_episodes
-        if exp > self.best_exp:
-            self.best_exp = exp
+        # 模拟训练进度（仅用于演示）
+        self.is_training = True
+        self.current_episode = 0
+        self.training_progress = 0
 
     def handle_click(self, pos):
         """处理点击"""
@@ -421,7 +522,11 @@ class MainGame:
         self.main_menu = MainMenu(self.screen, self.width, self.height)
         self.map_editor = None
         self.game_play = None
-        self.ai_training = None  # 新增
+        self.ai_training = None
+        self.route_replay = None
+
+        # 消息框
+        self.message_box = None
 
     def run(self):
         """主游戏循环"""
@@ -435,8 +540,10 @@ class MainGame:
                 self._run_map_editor()
             elif self.current_state == GameState.GAME_PLAY:
                 self._run_game_play()
-            elif self.current_state == GameState.AI_TRAINING:  # 新增
+            elif self.current_state == GameState.AI_TRAINING:
                 self._run_ai_training()
+            elif self.current_state == GameState.ROUTE_REPLAY:
+                self._run_route_replay()
 
             pygame.display.flip()
 
@@ -445,28 +552,64 @@ class MainGame:
 
     def _run_main_menu(self, dt):
         """运行主菜单"""
+        # 如果有消息框，优先处理
+        if self.message_box:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        if self.message_box.handle_click(event.pos):
+                            self.message_box = None
+                            return  # 立即返回，避免调用已经为None的对象
+
+            # 绘制主菜单和消息框
+            self.main_menu.update(dt)
+            self.main_menu.draw()
+            if self.message_box:  # 再次检查以确保安全
+                self.message_box.draw()
+            return
+
+        # 正常的主菜单事件处理
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEMOTION:
                 self.main_menu.handle_mouse_motion(event.pos)
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # 左键
+                if event.button == 1:
                     result = self.main_menu.handle_click(event.pos)
                     if result == 'exit':
                         self.running = False
                     elif result == GameState.MAP_EDITOR:
-                        # 创建地图编辑器
                         self.map_editor = HexMapEditor(self.width, self.height)
                         self.current_state = GameState.MAP_EDITOR
                     elif result == GameState.GAME_PLAY:
-                        # 创建游戏模式
                         self.game_play = GamePlaySystem(self.screen, self.width, self.height)
                         self.current_state = GameState.GAME_PLAY
-                    elif result == GameState.AI_TRAINING:  # 新增
-                        # 创建AI训练界面
+                    elif result == GameState.AI_TRAINING:
                         self.ai_training = AITrainingInterface(self.screen, self.width, self.height)
                         self.current_state = GameState.AI_TRAINING
+                    elif result == GameState.ROUTE_REPLAY:
+                        # 检查文件是否存在
+                        if os.path.exists('best_route.pkl'):
+                            try:
+                                from route_replay_system import RouteReplaySystem
+                                self.route_replay = RouteReplaySystem(self.screen, self.width, self.height)
+                                self.current_state = GameState.ROUTE_REPLAY
+                            except ImportError:
+                                self.message_box = MessageBox(
+                                    self.screen,
+                                    "无法导入回放系统模块！\n\n请确保 route_replay_system.py 文件存在",
+                                    "错误"
+                                )
+                        else:
+                            # 显示消息框
+                            self.message_box = MessageBox(
+                                self.screen,
+                                "未找到最优路线文件！\n\n请先进行AI训练以生成路线文件",
+                                "提示"
+                            )
 
         # 更新和绘制
         self.main_menu.update(dt)
@@ -477,17 +620,14 @@ class MainGame:
         if not self.map_editor:
             self.map_editor = HexMapEditor(self.width, self.height)
 
-        # 调用地图编辑器，传入standalone=False参数
         result = self.map_editor.run(standalone=False)
 
         if result == 'quit':
             self.running = False
         elif result == 'menu':
-            # 返回主菜单
             self.current_state = GameState.MAIN_MENU
             self.map_editor = None
         else:
-            # 正常返回（窗口关闭等）
             self.current_state = GameState.MAIN_MENU
             self.map_editor = None
 
@@ -496,7 +636,6 @@ class MainGame:
         if not self.game_play:
             self.game_play = GamePlaySystem(self.screen, self.width, self.height)
 
-        # 运行游戏系统
         result = self.game_play.run()
 
         if result == 'quit':
@@ -517,11 +656,47 @@ class MainGame:
                 if event.key == pygame.K_ESCAPE:
                     self.current_state = GameState.MAIN_MENU
                     self.ai_training = None
+                    return  # 立即返回，避免调用已经为None的对象
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     self.ai_training.handle_click(event.pos)
 
-        self.ai_training.draw()
+        if self.ai_training:  # 确保对象存在再调用draw
+            self.ai_training.draw()
+
+    def _run_route_replay(self):
+        """运行路线回放系统"""
+        if not self.route_replay:
+            try:
+                from route_replay_system import RouteReplaySystem
+                self.route_replay = RouteReplaySystem(self.screen, self.width, self.height)
+            except ImportError:
+                self.message_box = MessageBox(
+                    self.screen,
+                    "无法导入回放系统模块！\n\n请确保 route_replay_system.py 文件存在",
+                    "错误"
+                )
+                self.current_state = GameState.MAIN_MENU
+                self.route_replay = None  # 确保设置为None
+                return
+            except Exception as e:
+                self.message_box = MessageBox(
+                    self.screen,
+                    f"加载回放系统时出错！\n\n{str(e)[:100]}",
+                    "错误"
+                )
+                self.current_state = GameState.MAIN_MENU
+                self.route_replay = None  # 确保设置为None
+                return
+
+        if self.route_replay:  # 确保对象存在
+            result = self.route_replay.run()
+
+            if result == 'quit':
+                self.running = False
+            elif result == 'menu':
+                self.current_state = GameState.MAIN_MENU
+                self.route_replay = None
 
 
 if __name__ == "__main__":
