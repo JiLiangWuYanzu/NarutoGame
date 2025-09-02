@@ -46,6 +46,7 @@ class TerrainType(Enum):
 
     # 障碍物
     WALL = 30  # 墙壁（默认地形）
+    BOUNDARY = 42 #边缘墙壁
 
     # BOSS地块
     BOSS_GAARA = 31  # BOSS 我爱罗
@@ -121,6 +122,7 @@ class StyleConfig:
 
         # 障碍物
         TerrainType.WALL: (105, 105, 105),  # 深灰色 - 墙壁
+        TerrainType.BOUNDARY: (0, 0, 0),  # 纯黑色 - 边界墙
 
         # BOSS地块 - 红色/紫色系，威胁等级用颜色深浅表示
         TerrainType.BOSS_GAARA: (220, 20, 60),  # 深红色 - 我爱罗
@@ -331,6 +333,11 @@ class StyleConfig:
             "food_cost": -1, "exp_gain": 0, "status": 2,  # 不可征服
             "has_item": False, "score_cost": 0, "food_gain": 0,
             "action_gain": 0, "passable": False, "name": "Wall"
+        },
+        TerrainType.BOUNDARY: {  # <-- 新增这个配置
+            "food_cost": -1, "exp_gain": 0, "status": 2,  # 不可征服
+            "has_item": False, "score_cost": 0, "food_gain": 0,
+            "action_gain": 0, "passable": False, "name": "Boundary"
         },
 
         # BOSS地块
@@ -565,6 +572,7 @@ def get_terrain_name_chinese(cls, terrain_type: TerrainType) -> str:
 
         # 障碍物
         TerrainType.WALL: "墙壁",
+        TerrainType.BOUNDARY: "边界墙",
     }
 
     return chinese_names.get(terrain_type, terrain_type.name)

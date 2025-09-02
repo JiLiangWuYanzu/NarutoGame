@@ -190,7 +190,8 @@ class HexMapEditor:
                 TerrainType.BOSS_HANA
             ],
             TerrainCategory.OBSTACLE: [
-                TerrainType.WALL
+                TerrainType.WALL,
+                TerrainType.BOUNDARY
             ]
         }
 
@@ -726,82 +727,86 @@ class HexMapEditor:
                 ]
                 pygame.draw.polygon(self.screen, (255, 255, 255), tent_points, 2)
 
-            # 在六边形中显示地块名称（非空地块）
-            if tile.terrain_type != TerrainType.WALL:
+                # 在 hex_map_editor_chinese.py 的 draw_map 方法中
+                # 找到这段代码（大约在第600-650行之间）：
+
+                # 在 hex_map_editor_chinese.py 的 draw_map 方法中
+                # 找到这段代码（大约在第600-650行之间）：
+
+                # 在六边形中显示地块名称（非空地块）
+            if tile.terrain_type != TerrainType.WALL and tile.terrain_type != TerrainType.BOUNDARY:
                 # 使用中文名称
                 name = self.style.get_terrain_name_chinese(tile.terrain_type)
 
                 # 根据缩放级别调整字体大小和显示策略
-                if self.zoom >= 0.12:  # 更低的显示阈值
-                    # 计算六边形的实际像素大小
-                    hex_pixel_size = self.hex_size * self.zoom
-
-                    # 重新调整字体大小分级，更加宽松
-                    if hex_pixel_size < 12:
+                if self.zoom >= 0.6:  # 小于0.6不显示文字
+                    # 根据缩放级别决定显示字数和字体大小
+                    if self.zoom < 0.7:
                         font_size = 8
-                        display_name = name[:4]  # 显示两个字
-                    elif hex_pixel_size < 20:
+                        display_name = name[:1] if len(name) > 0 else ""
+                    elif self.zoom < 0.9:
                         font_size = 10
-                        display_name = name[:5]  # 显示三个字
-                    elif hex_pixel_size < 30:
+                        display_name = name[:2] if len(name) > 1 else name
+                    elif self.zoom < 1.2:
                         font_size = 12
-                        display_name = name[:6]  # 显示四个字
-                    elif hex_pixel_size < 45:
+                        display_name = name[:3] if len(name) > 2 else name
+                    elif self.zoom < 1.5:
                         font_size = 14
-                        display_name = name[:7]  # 显示五个字
-                    elif hex_pixel_size < 65:
+                        display_name = name[:4] if len(name) > 3 else name
+                    else:  # zoom >= 1.5 就显示完整名称
                         font_size = 16
-                        display_name = name[:8]  # 显示六个字
-                    else:
-                        # 大六边形时可以显示更大字体
-                        font_size = min(20, int(hex_pixel_size * 0.3))
                         display_name = name  # 显示完整名称
 
                     # 确保字体大小在合理范围内
                     font_size = max(8, min(font_size, 24))
 
-                    text_font = get_font(font_size)
+                    try:
+                        text_font = get_font(font_size)
+                        # 渲染文字
+                        text_surface = text_font.render(display_name, True, (255, 255, 255))
 
-                    # 渲染文字
-                    text_surface = text_font.render(display_name, True, (255, 255, 255))
+                        # 计算六边形的实际像素大小
+                        hex_pixel_size = self.hex_size * self.zoom
 
-                    # 检查文字宽度，如果太宽则尝试缩短或缩小字体
-                    text_width = text_surface.get_width()
-                    max_text_width = hex_pixel_size * 1.6  # 放宽文字宽度限制
+                        # 检查文字宽度
+                        text_width = text_surface.get_width()
+                        max_text_width = hex_pixel_size * 1.6
 
-                    # 如果文字宽度超出，优先尝试缩短文字而不是缩小字体
-                    if text_width > max_text_width and len(display_name) > 3:
-                        # 逐步缩短文字直到合适
-                        for length in range(len(display_name) - 1, 2, -1):  # 最少显示3个字符
-                            test_name = display_name[:length]
-                            test_surface = text_font.render(test_name, True, (255, 255, 255))
-                            if test_surface.get_width() <= max_text_width:
-                                display_name = test_name
-                                text_surface = test_surface
-                                break
-                        else:
-                            # 如果缩短文字还是太宽，再缩小字体
-                            scale_factor = max_text_width / text_width
-                            new_font_size = max(8, int(font_size * scale_factor))
-                            if new_font_size < font_size:
+                        # 如果文字太宽，调整策略
+                        if text_width > max_text_width:
+                            if self.zoom < 1.5:
+                                # 小缩放时，尝试缩短文字
+                                while len(display_name) > 1 and text_width > max_text_width:
+                                    display_name = display_name[:-1]
+                                    text_surface = text_font.render(display_name, True, (255, 255, 255))
+                                    text_width = text_surface.get_width()
+                            else:
+                                # 大缩放时（>=1.5），缩小字体
+                                scale_factor = max_text_width / text_width
+                                new_font_size = max(12, int(font_size * scale_factor))
                                 text_font = get_font(new_font_size)
                                 text_surface = text_font.render(display_name, True, (255, 255, 255))
 
-                    # 计算文字位置（居中）
-                    text_rect = text_surface.get_rect(center=(int(center[0]), int(center[1])))
+                        # 计算文字位置（居中）
+                        text_rect = text_surface.get_rect(center=(int(center[0]), int(center[1])))
 
-                    # 根据字体大小决定是否添加背景
-                    if font_size >= 12:
-                        # 为较大字体添加半透明背景以提高可读性
-                        padding = 1
-                        bg_rect = text_rect.inflate(padding * 2, padding)
-                        bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
-                        bg_surface.set_alpha(120)  # 更淡的背景
-                        bg_surface.fill((20, 20, 30))
-                        self.screen.blit(bg_surface, bg_rect)
+                        # 根据字体大小决定是否添加背景
+                        if font_size >= 12 and self.zoom >= 1.0:
+                            # 为较大字体添加半透明背景
+                            padding = 1
+                            bg_rect = text_rect.inflate(padding * 2, padding)
+                            bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
+                            bg_surface.set_alpha(120)
+                            bg_surface.fill((20, 20, 30))
+                            self.screen.blit(bg_surface, bg_rect)
 
-                    # 绘制文字
-                    self.screen.blit(text_surface, text_rect)
+                        # 绘制文字
+                        self.screen.blit(text_surface, text_rect)
+
+                    except Exception as e:
+                        # 如果出现任何错误，跳过文字绘制
+                        print(f"文字绘制错误: {e}")
+                        pass
 
     def draw_ui(self):
         """绘制用户界面 - 分类选择系统（中文）"""
