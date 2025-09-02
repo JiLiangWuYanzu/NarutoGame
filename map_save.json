@@ -1,6 +1,10 @@
 {
-  "map_width": 100,
-  "map_height": 100,
+  "map_width": 59,
+  "map_height": 55,
+  "actual_min_q": -50,
+  "actual_max_q": 9,
+  "actual_min_r": -13,
+  "actual_max_r": 42,
   "start_position": [
     -16,
     49

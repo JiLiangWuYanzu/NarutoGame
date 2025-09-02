@@ -1,8 +1,8 @@
 """
-六边形地图编辑器 - 游戏地块系统版本（中文版）
+六边形地图编辑器 - 游戏地块系统版本（中文版）- 带裁剪功能（修复版）
 特点：平顶六边形（尖顶在两侧）
 使用轴向坐标系统作为六边形网格
-增强功能：分类地块选择系统，支持41种地块类型
+增强功能：分类地块选择系统，支持41种地块类型，地图裁剪功能
 """
 import pygame
 import math
@@ -108,6 +108,12 @@ class HexMapEditor:
         self.map_width = 100  # 地图宽度（列数）
         self.map_height = 100  # 地图高度（行数）
 
+        # 地图实际边界（新增）
+        self.actual_min_q = -self.map_width // 2
+        self.actual_max_q = self.map_width // 2
+        self.actual_min_r = -self.map_height // 2
+        self.actual_max_r = self.map_height // 2
+
         # 在已知地图大小后初始化pygame
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
@@ -118,8 +124,8 @@ class HexMapEditor:
 
         # 使用中文字体
         self.font = get_medium_font()
-        self.small_font = get_small_font()  # 修改：使用中文字体
-        self.log_font = get_small_font()    # 修改：使用中文字体
+        self.small_font = get_small_font()
+        self.log_font = get_small_font()
 
         # 当前选中的地形类型
         self.current_terrain = TerrainType.NORMAL_LV1
@@ -128,6 +134,7 @@ class HexMapEditor:
         self.camera_x = width // 2
         self.camera_y = height // 2
         self.start_position_placed = None  # 追踪初始位置坐标，确保唯一性
+
         # 鼠标拖拽
         self.is_dragging = False
         self.drag_start_pos = (0, 0)
@@ -190,6 +197,18 @@ class HexMapEditor:
         self.current_category = TerrainCategory.BASIC
         self.category_scroll = {cat: 0 for cat in TerrainCategory}  # 每个分类的滚动位置
 
+        # ========== 裁剪模式相关变量（优化版本）==========
+        self.crop_mode = False  # 是否处于裁剪模式
+        self.crop_preview = {
+            'left': 0,  # 左边裁剪列数
+            'right': 0,  # 右边裁剪列数
+            'top': 0,  # 上边裁剪行数
+            'bottom': 0  # 下边裁剪行数
+        }
+        # 性能优化：缓存相关变量
+        self.tiles_to_remove_cache = 0  # 缓存要删除的地块数量
+        self.crop_preview_changed = True  # 标记裁剪预览是否改变
+
         # 日志系统
         self.log_messages: List[LogMessage] = []
         self.max_log_messages = 6  # 最多显示的日志条数（减少以保持清爽）
@@ -202,6 +221,7 @@ class HexMapEditor:
         self.add_log("地图编辑器已启动", "success")
         self.add_log(f"地图大小: {self.map_width}x{self.map_height}", "info")
         self.add_log("已加载41种地形类型", "info")
+        self.add_log("Ctrl+C 进入裁剪模式", "info")
 
         # 初始化地图
         self.init_map()
@@ -225,6 +245,297 @@ class HexMapEditor:
         # 限制日志数量
         if len(self.log_messages) > self.max_log_messages:
             self.log_messages.pop(0)
+
+    def toggle_crop_mode(self):
+        """切换裁剪模式"""
+        self.crop_mode = not self.crop_mode
+        if self.crop_mode:
+            self.add_log("进入裁剪模式 - 使用方向键调整裁剪范围", "info")
+            self.message = "裁剪模式: 方向键调整, Enter确认, ESC取消"
+            self.message_timer = 5000
+            # 重置裁剪预览
+            self.crop_preview = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
+            self.crop_preview_changed = True  # 标记需要重新计算
+            self.tiles_to_remove_cache = 0
+        else:
+            self.add_log("退出裁剪模式", "info")
+            self.crop_preview = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
+            self.crop_preview_changed = True
+
+    def get_map_bounds(self):
+        """获取当前地图中非空地块的边界"""
+        min_q, max_q = float('inf'), float('-inf')
+        min_r, max_r = float('inf'), float('-inf')
+
+        for (q, r), tile in self.hex_map.items():
+            if tile.terrain_type != TerrainType.WALL:
+                min_q = min(min_q, q)
+                max_q = max(max_q, q)
+                min_r = min(min_r, r)
+                max_r = max(max_r, r)
+
+        if min_q == float('inf'):  # 地图全是墙
+            return None
+
+        return {
+            'min_q': min_q,
+            'max_q': max_q,
+            'min_r': min_r,
+            'max_r': max_r
+        }
+
+    def calculate_crop_bounds(self):
+        """计算裁剪后的地图边界"""
+        # 使用实际地图边界而不是假设的对称边界
+        current_min_q = self.actual_min_q
+        current_max_q = self.actual_max_q
+        current_min_r = self.actual_min_r
+        current_max_r = self.actual_max_r
+
+        # 应用裁剪
+        new_min_q = current_min_q + self.crop_preview['left']
+        new_max_q = current_max_q - self.crop_preview['right']
+        new_min_r = current_min_r + self.crop_preview['top']
+        new_max_r = current_max_r - self.crop_preview['bottom']
+
+        return new_min_q, new_max_q, new_min_r, new_max_r
+
+    def count_tiles_to_remove(self):
+        """统计将要删除的非空地块数量 - 带缓存"""
+        # 只在裁剪预览改变时重新计算
+        if not self.crop_preview_changed:
+            return self.tiles_to_remove_cache
+
+        new_min_q, new_max_q, new_min_r, new_max_r = self.calculate_crop_bounds()
+        count = 0
+
+        # 只检查非空地块，而不是遍历整个地图
+        for (q, r), tile in self.hex_map.items():
+            if tile.terrain_type != TerrainType.WALL:
+                q_offset = q // 2
+                if (q < new_min_q or q > new_max_q or
+                        r < new_min_r - q_offset or r > new_max_r - q_offset):
+                    count += 1
+
+        self.tiles_to_remove_cache = count
+        self.crop_preview_changed = False
+        return count
+
+    def apply_crop(self):
+        """应用裁剪操作 - 修复版本"""
+        if sum(self.crop_preview.values()) == 0:
+            self.add_log("没有选择裁剪区域", "warning")
+            return
+
+        # 计算新的地图尺寸
+        new_width = self.map_width - self.crop_preview['left'] - self.crop_preview['right']
+        new_height = self.map_height - self.crop_preview['top'] - self.crop_preview['bottom']
+
+        if new_width < 10 or new_height < 10:
+            self.add_log("裁剪后地图太小（最小10x10）", "error")
+            return
+
+        # 计算新边界
+        new_min_q, new_max_q, new_min_r, new_max_r = self.calculate_crop_bounds()
+
+        # 保存要保留的地块
+        tiles_to_keep = {}
+        removed_count = 0
+
+        for (q, r), tile in self.hex_map.items():
+            q_offset = q // 2
+            if (new_min_q <= q <= new_max_q and
+                new_min_r - q_offset <= r <= new_max_r - q_offset):
+                tiles_to_keep[(q, r)] = tile
+            elif tile.terrain_type != TerrainType.WALL:
+                removed_count += 1
+
+        # 更新地图尺寸和实际边界
+        self.map_width = new_width
+        self.map_height = new_height
+        self.actual_min_q = new_min_q
+        self.actual_max_q = new_max_q
+        self.actual_min_r = new_min_r
+        self.actual_max_r = new_max_r
+
+        # 重新初始化地图
+        self.hex_map.clear()
+        self.init_map()  # 现在会使用更新后的 actual_min/max 值
+
+        # 恢复保留的地块
+        for (q, r), tile in tiles_to_keep.items():
+            if (q, r) in self.hex_map:
+                self.hex_map[(q, r)] = tile
+
+        # 更新起始位置坐标（如果存在）
+        if self.start_position_placed:
+            old_q, old_r = self.start_position_placed
+            q_offset = old_q // 2
+            if (new_min_q <= old_q <= new_max_q and
+                new_min_r - q_offset <= old_r <= new_max_r - q_offset):
+                self.start_position_placed = (old_q, old_r)
+            else:
+                self.start_position_placed = None
+                self.add_log("起始位置被裁剪掉了", "warning")
+
+        # 更新窗口标题
+        pygame.display.set_caption(f"六边形地图编辑器 - {self.map_width}x{self.map_height} 地图")
+
+        # 记录日志
+        self.add_log(f"地图裁剪完成: {self.map_width}x{self.map_height}", "success")
+        if removed_count > 0:
+            self.add_log(f"删除了 {removed_count} 个地块", "warning")
+
+        self.message = f"裁剪成功! 新尺寸: {self.map_width}x{self.map_height}"
+        self.message_timer = self.message_duration
+
+        # 退出裁剪模式
+        self.crop_mode = False
+        self.crop_preview = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
+
+    def draw_crop_preview(self):
+        """绘制裁剪预览 - 优化版本"""
+        if not self.crop_mode:
+            return
+
+        # 计算裁剪边界
+        new_min_q, new_max_q, new_min_r, new_max_r = self.calculate_crop_bounds()
+
+        # 创建一个单独的半透明表面用于所有要删除的六边形
+        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
+
+        # 批量绘制所有要删除的六边形到同一个surface上
+        for (q, r) in self.visible_tiles:
+            q_offset = q // 2
+            if (q < new_min_q or q > new_max_q or
+                    r < new_min_r - q_offset or r > new_max_r - q_offset):
+                center = self.hex_to_pixel(q, r)
+                # 绘制红色半透明遮罩
+                points = []
+                for i in range(6):
+                    angle = math.pi / 3 * i
+                    x = center[0] + self.hex_size * self.zoom * math.cos(angle)
+                    y = center[1] + self.hex_size * self.zoom * math.sin(angle)
+                    points.append((x, y))
+
+                # 绘制到同一个overlay surface上
+                pygame.draw.polygon(overlay, (255, 0, 0, 100), points)
+
+        # 一次性绘制整个overlay
+        self.screen.blit(overlay, (0, 0))
+
+    def draw_crop_ui(self):
+        """绘制裁剪模式UI"""
+        if not self.crop_mode:
+            return
+
+        # 绘制裁剪信息面板
+        panel_width = 400
+        panel_height = 200
+        panel_x = (self.width - panel_width) // 2
+        panel_y = 50
+
+        # 背景
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
+        pygame.draw.rect(self.screen, (30, 30, 40), panel_rect)
+        pygame.draw.rect(self.screen, (100, 100, 120), panel_rect, 2)
+
+        # 标题
+        title_text = "地图裁剪模式"
+        title_surface = self.font.render(title_text, True, (255, 255, 255))
+        title_rect = title_surface.get_rect(centerx=panel_x + panel_width // 2, y=panel_y + 10)
+        self.screen.blit(title_surface, title_rect)
+
+        # 当前裁剪设置
+        info_y = panel_y + 40
+        info_lines = [
+            f"左侧裁剪: {self.crop_preview['left']} 列",
+            f"右侧裁剪: {self.crop_preview['right']} 列",
+            f"顶部裁剪: {self.crop_preview['top']} 行",
+            f"底部裁剪: {self.crop_preview['bottom']} 行",
+            "",
+            f"新尺寸: {self.map_width - self.crop_preview['left'] - self.crop_preview['right']}x"
+            f"{self.map_height - self.crop_preview['top'] - self.crop_preview['bottom']}",
+            f"将删除 {self.count_tiles_to_remove()} 个非空地块"
+        ]
+
+        for line in info_lines:
+            if line:
+                text_surface = self.small_font.render(line, True, (200, 200, 200))
+                self.screen.blit(text_surface, (panel_x + 20, info_y))
+            info_y += 20
+
+        # 操作提示
+        hint_text = "方向键:调整 | Shift+方向键:快速调整 | Enter:确认 | ESC:取消"
+        hint_surface = self.small_font.render(hint_text, True, (150, 200, 150))
+        hint_rect = hint_surface.get_rect(centerx=panel_x + panel_width // 2, y=panel_y + panel_height - 25)
+        self.screen.blit(hint_surface, hint_rect)
+
+    def handle_crop_input(self, event):
+        """处理裁剪模式下的输入"""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                # 取消裁剪
+                self.toggle_crop_mode()
+                return True
+
+            elif event.key == pygame.K_RETURN:
+                # 确认裁剪
+                tiles_to_remove = self.count_tiles_to_remove()
+                if tiles_to_remove > 0:
+                    self.message = f"确认裁剪? 将删除 {tiles_to_remove} 个地块 (再次按Enter确认)"
+                    self.message_timer = 5000
+                    self.apply_crop()
+                else:
+                    self.apply_crop()
+                return True
+
+            # 方向键调整裁剪范围
+            shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+            adjust = 5 if shift_pressed else 1
+
+            old_preview = self.crop_preview.copy()
+
+            if event.key == pygame.K_LEFT:
+                self.crop_preview['left'] = max(0, self.crop_preview['left'] + adjust)
+            elif event.key == pygame.K_RIGHT:
+                self.crop_preview['right'] = max(0, self.crop_preview['right'] + adjust)
+            elif event.key == pygame.K_UP:
+                self.crop_preview['top'] = max(0, self.crop_preview['top'] + adjust)
+            elif event.key == pygame.K_DOWN:
+                self.crop_preview['bottom'] = max(0, self.crop_preview['bottom'] + adjust)
+
+            # 如果裁剪预览改变了，设置标记
+            if old_preview != self.crop_preview:
+                self.crop_preview_changed = True
+
+            # 确保裁剪后地图不会太小
+            new_width = self.map_width - self.crop_preview['left'] - self.crop_preview['right']
+            new_height = self.map_height - self.crop_preview['top'] - self.crop_preview['bottom']
+
+            if new_width < 10:
+                self.crop_preview['left'] = max(0, self.crop_preview['left'] - 1)
+                self.crop_preview['right'] = max(0, self.crop_preview['right'] - 1)
+                self.crop_preview_changed = True
+            if new_height < 10:
+                self.crop_preview['top'] = max(0, self.crop_preview['top'] - 1)
+                self.crop_preview['bottom'] = max(0, self.crop_preview['bottom'] - 1)
+                self.crop_preview_changed = True
+
+            # 只在改变时显示日志
+            if self.crop_preview_changed:
+                if event.key == pygame.K_LEFT:
+                    self.add_log(f"左侧裁剪: {self.crop_preview['left']} 列", "info")
+                elif event.key == pygame.K_RIGHT:
+                    self.add_log(f"右侧裁剪: {self.crop_preview['right']} 列", "info")
+                elif event.key == pygame.K_UP:
+                    self.add_log(f"顶部裁剪: {self.crop_preview['top']} 行", "info")
+                elif event.key == pygame.K_DOWN:
+                    self.add_log(f"底部裁剪: {self.crop_preview['bottom']} 行", "info")
+
+            return True
+
+        return False
 
     def draw_log_panel(self):
         """绘制日志面板"""
@@ -278,10 +589,10 @@ class HexMapEditor:
 
     def init_map(self):
         """为平顶六边形初始化空地图，使用矩形布局"""
-        # 创建矩形地图
-        for q in range(-self.map_width // 2, self.map_width // 2 + 1):
+        # 创建矩形地图（使用实际边界）
+        for q in range(self.actual_min_q, self.actual_max_q + 1):
             q_offset = q // 2
-            for r in range(-self.map_height // 2 - q_offset, self.map_height // 2 - q_offset + 1):
+            for r in range(self.actual_min_r - q_offset, self.actual_max_r - q_offset + 1):
                 self.hex_map[(q, r)] = HexTile(q, r, TerrainType.WALL)
 
     def hex_to_pixel(self, q: int, r: int) -> Tuple[float, float]:
@@ -428,19 +739,19 @@ class HexMapEditor:
                     # 重新调整字体大小分级，更加宽松
                     if hex_pixel_size < 12:
                         font_size = 8
-                        display_name = name[:2]  # 显示两个字
+                        display_name = name[:4]  # 显示两个字
                     elif hex_pixel_size < 20:
                         font_size = 10
-                        display_name = name[:3]  # 显示三个字
+                        display_name = name[:5]  # 显示三个字
                     elif hex_pixel_size < 30:
                         font_size = 12
-                        display_name = name[:4]  # 显示四个字
+                        display_name = name[:6]  # 显示四个字
                     elif hex_pixel_size < 45:
                         font_size = 14
-                        display_name = name[:5]  # 显示五个字
+                        display_name = name[:7]  # 显示五个字
                     elif hex_pixel_size < 65:
                         font_size = 16
-                        display_name = name[:6]  # 显示六个字
+                        display_name = name[:8]  # 显示六个字
                     else:
                         # 大六边形时可以显示更大字体
                         font_size = min(20, int(hex_pixel_size * 0.3))
@@ -600,7 +911,7 @@ class HexMapEditor:
 
         # 操作说明（中文）
         instructions = [
-            "Tab:切换分类 | 双击:放置地块 | Ctrl+S:保存 | Ctrl+L:加载 | R:重置视图"
+            "Tab:切换分类 | 双击:放置地块 | Ctrl+S:保存 | Ctrl+L:加载 | Ctrl+C:裁剪 | R:重置视图"
         ]
         for i, instruction in enumerate(instructions):
             text = self.small_font.render(instruction, True, self.style.TEXT_COLOR)
@@ -615,7 +926,7 @@ class HexMapEditor:
         self.screen.blit(info_surface, info_bg)
 
     def draw_minimap(self):
-        """为大地图导航绘制小地图"""
+        """为大地图导航绘制小地图 - 修复版，基于实际边界"""
         if self.map_width <= 30 and self.map_height <= 30:
             return  # 小地图不显示小地图
 
@@ -629,28 +940,47 @@ class HexMapEditor:
         pygame.draw.rect(self.screen, (20, 20, 30), minimap_rect)
         pygame.draw.rect(self.screen, (80, 80, 90), minimap_rect, 2)
 
-        # 计算比例
-        scale_x = minimap_size / (self.map_width * 1.5)
-        scale_y = minimap_size / (self.map_height * math.sqrt(3))
+        # 使用实际边界计算地图的真实范围
+        actual_width = self.actual_max_q - self.actual_min_q
+        actual_height = self.actual_max_r - self.actual_min_r
+
+        # 计算比例（基于实际边界）
+        scale_x = minimap_size / (actual_width * 1.5)
+        scale_y = minimap_size / (actual_height * math.sqrt(3))
         scale = min(scale_x, scale_y) * 0.8
 
+        # 计算中心偏移（将实际地图中心映射到小地图中心）
+        center_q = (self.actual_min_q + self.actual_max_q) / 2
+        center_r = (self.actual_min_r + self.actual_max_r) / 2
+
         # 在小地图上绘制瓦片（为性能采样）
-        sample_rate = max(1, self.map_width // 50)  # 对于非常大的地图采样更少
+        sample_rate = max(1, max(actual_width, actual_height) // 50)  # 基于实际尺寸采样
 
         for (q, r), tile in self.hex_map.items():
             if (q % sample_rate == 0 or r % sample_rate == 0) and tile.terrain_type != TerrainType.WALL:
+                # 相对于实际地图中心的偏移
+                rel_q = q - center_q
+                rel_r = r - center_r
+
                 # 将六边形转换为小地图像素
-                x = minimap_x + minimap_size / 2 + q * scale * 1.5
-                y = minimap_y + minimap_size / 2 + (r + q / 2) * scale * math.sqrt(3)
+                x = minimap_x + minimap_size / 2 + rel_q * scale * 1.5
+                y = minimap_y + minimap_size / 2 + (rel_r + rel_q / 2) * scale * math.sqrt(3)
 
                 if minimap_x <= x <= minimap_x + minimap_size and minimap_y <= y <= minimap_y + minimap_size:
                     color = self.style.TERRAIN_COLORS[tile.terrain_type]
-                    pygame.draw.circle(self.screen, color, (int(x), int(y)), max(1, int(scale)))
+                    # 根据缩放调整点的大小
+                    dot_size = max(1, int(scale * 0.8))
+                    pygame.draw.circle(self.screen, color, (int(x), int(y)), dot_size)
 
         # 绘制视口指示器
-        center_q, center_r = self.pixel_to_hex(self.width // 2, (self.height - self.ui_height) // 2)
-        viewport_x = minimap_x + minimap_size / 2 + center_q * scale * 1.5
-        viewport_y = minimap_y + minimap_size / 2 + (center_r + center_q / 2) * scale * math.sqrt(3)
+        view_center_q, view_center_r = self.pixel_to_hex(self.width // 2, (self.height - self.ui_height) // 2)
+
+        # 视口中心相对于地图中心的偏移
+        rel_view_q = view_center_q - center_q
+        rel_view_r = view_center_r - center_r
+
+        viewport_x = minimap_x + minimap_size / 2 + rel_view_q * scale * 1.5
+        viewport_y = minimap_y + minimap_size / 2 + (rel_view_r + rel_view_q / 2) * scale * math.sqrt(3)
 
         # 绘制视口矩形
         view_width = (self.width / (self.hex_size * self.zoom * 1.5)) * scale * 1.5
@@ -669,8 +999,14 @@ class HexMapEditor:
         if viewport_rect.width > 0 and viewport_rect.height > 0:
             pygame.draw.rect(self.screen, (255, 215, 0), viewport_rect, 2)
 
+        # 在小地图上显示实际尺寸信息（可选）
+        size_text = f"{actual_width}x{actual_height}"
+        size_surface = self.small_font.render(size_text, True, (150, 150, 150))
+        size_rect = size_surface.get_rect(center=(minimap_x + minimap_size // 2, minimap_y + minimap_size + 10))
+        self.screen.blit(size_surface, size_rect)
+
     def handle_minimap_click(self, pos: Tuple[int, int]) -> bool:
-        """处理小地图点击以跳转到位置"""
+        """处理小地图点击以跳转到位置 - 修复版，基于实际边界"""
         if self.map_width <= 30 and self.map_height <= 30:
             return False
 
@@ -680,18 +1016,26 @@ class HexMapEditor:
         minimap_rect = pygame.Rect(minimap_x, minimap_y, minimap_size, minimap_size)
 
         if minimap_rect.collidepoint(pos):
-            # 计算比例
-            scale_x = minimap_size / (self.map_width * 1.5)
-            scale_y = minimap_size / (self.map_height * math.sqrt(3))
+            # 使用实际边界计算
+            actual_width = self.actual_max_q - self.actual_min_q
+            actual_height = self.actual_max_r - self.actual_min_r
+
+            # 计算比例（基于实际边界）
+            scale_x = minimap_size / (actual_width * 1.5)
+            scale_y = minimap_size / (actual_height * math.sqrt(3))
             scale = min(scale_x, scale_y) * 0.8
 
-            # 将点击位置转换为六边形坐标
+            # 计算地图中心
+            center_q = (self.actual_min_q + self.actual_max_q) / 2
+            center_r = (self.actual_min_r + self.actual_max_r) / 2
+
+            # 将点击位置转换为相对于小地图中心的偏移
             rel_x = (pos[0] - minimap_x - minimap_size / 2) / (scale * 1.5)
             rel_y = (pos[1] - minimap_y - minimap_size / 2) / (scale * math.sqrt(3))
 
-            # 转换为世界位置
-            target_q = rel_x
-            target_r = rel_y - rel_x / 2
+            # 转换为世界坐标
+            target_q = center_q + rel_x
+            target_r = center_r + rel_y - rel_x / 2
 
             # 将相机中心定位到此位置
             target_x, target_y = self.hex_to_pixel(int(target_q), int(target_r))
@@ -805,11 +1149,17 @@ class HexMapEditor:
         old_width = self.map_width
         old_height = self.map_height
 
+        # 更新实际边界
+        self.actual_min_q = -new_width // 2
+        self.actual_max_q = new_width // 2
+        self.actual_min_r = -new_height // 2
+        self.actual_max_r = new_height // 2
+
         # 计算保留区域
-        min_q = -new_width // 2
-        max_q = new_width // 2
-        min_r = -new_height // 2
-        max_r = new_height // 2
+        min_q = self.actual_min_q
+        max_q = self.actual_max_q
+        min_r = self.actual_min_r
+        max_r = self.actual_max_r
 
         # 保存现有的非空地块
         tiles_to_keep = {}
@@ -861,6 +1211,10 @@ class HexMapEditor:
             save_data = {
                 'map_width': self.map_width,
                 'map_height': self.map_height,
+                'actual_min_q': self.actual_min_q,  # 新增
+                'actual_max_q': self.actual_max_q,  # 新增
+                'actual_min_r': self.actual_min_r,  # 新增
+                'actual_max_r': self.actual_max_r,  # 新增
                 'start_position': self.start_position_placed,
                 'tiles': [
                     tile.to_dict() for tile in self.hex_map.values()
@@ -892,6 +1246,20 @@ class HexMapEditor:
 
             self.map_width = save_data['map_width']
             self.map_height = save_data['map_height']
+
+            # 加载实际边界（如果存在，为了兼容旧版本）
+            if 'actual_min_q' in save_data:
+                self.actual_min_q = save_data['actual_min_q']
+                self.actual_max_q = save_data['actual_max_q']
+                self.actual_min_r = save_data['actual_min_r']
+                self.actual_max_r = save_data['actual_max_r']
+            else:
+                # 兼容旧版本保存文件
+                self.actual_min_q = -self.map_width // 2
+                self.actual_max_q = self.map_width // 2
+                self.actual_min_r = -self.map_height // 2
+                self.actual_max_r = self.map_height // 2
+
             self.start_position_placed = save_data.get('start_position')  # 加载初始位置
 
             # 清除并重新初始化地图
@@ -930,6 +1298,11 @@ class HexMapEditor:
                 self.message_timer -= self.clock.get_time()
 
             for event in pygame.event.get():
+                # 如果在裁剪模式，优先处理裁剪输入
+                if self.crop_mode and event.type == pygame.KEYDOWN:
+                    if self.handle_crop_input(event):
+                        continue  # 如果裁剪模式处理了输入，跳过其他处理
+
                 if event.type == pygame.QUIT:
                     if standalone:
                         running = False
@@ -994,6 +1367,9 @@ class HexMapEditor:
                         self.save_map()
                     elif event.key == pygame.K_l and pygame.key.get_mods() & pygame.KMOD_CTRL:
                         self.load_map()
+                    # 裁剪模式
+                    elif event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                        self.toggle_crop_mode()
                     # 重置视图
                     elif event.key == pygame.K_r:
                         self.camera_x = self.width // 2
@@ -1016,6 +1392,10 @@ class HexMapEditor:
             # 绘制
             self.screen.fill(self.style.BG_COLOR)
             self.draw_map()
+
+            # 如果在裁剪模式，绘制裁剪预览
+            if self.crop_mode:
+                self.draw_crop_preview()
 
             # 高亮鼠标下的六边形（微妙效果）- 仅当不拖拽时
             mouse_pos = pygame.mouse.get_pos()
@@ -1040,6 +1420,11 @@ class HexMapEditor:
             self.draw_ui()
             self.draw_minimap()
             self.draw_log_panel()  # 绘制日志面板
+
+            # 如果在裁剪模式，绘制裁剪UI
+            if self.crop_mode:
+                self.draw_crop_ui()
+
             self.draw_message()  # 绘制消息提示
 
             # 如果非独立运行，显示返回提示（中文）
