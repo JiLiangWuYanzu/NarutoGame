@@ -1,6 +1,6 @@
 """
 六边形地图策略游戏 - 主程序（中文版）
-包含主界面、地图编辑器和游戏模式
+包含主界面、地图编辑器、游戏模式和AI训练
 """
 import pygame
 import sys
@@ -24,6 +24,7 @@ class GameState(Enum):
     MAP_EDITOR = "map_editor"
     GAME_PLAY = "game_play"
     GAME_SETTINGS = "game_settings"
+    AI_TRAINING = "ai_training"  # 新增：AI训练状态
 
 
 class MainMenu:
@@ -48,15 +49,20 @@ class MainMenu:
         self.button_height = 80
         self.button_spacing = 30
 
-        # 创建按钮（中文）
+        # 创建按钮（中文）- 添加AI训练按钮
         self.buttons = {
+            'start_game': {
+                'text': '开始游戏',
+                'rect': None,
+                'hovered': False
+            },
             'map_editor': {
                 'text': '地图编辑器',
                 'rect': None,
                 'hovered': False
             },
-            'start_game': {
-                'text': '开始游戏',
+            'ai_training': {  # 新增
+                'text': 'AI训练',
                 'rect': None,
                 'hovered': False
             },
@@ -79,7 +85,8 @@ class MainMenu:
         total_height = len(self.buttons) * self.button_height + (len(self.buttons) - 1) * self.button_spacing
         start_y = (self.height - total_height) // 2 + 50
 
-        for i, button_key in enumerate(['map_editor', 'start_game', 'exit']):
+        button_order = ['start_game', 'map_editor', 'ai_training', 'exit']  # 按钮顺序
+        for i, button_key in enumerate(button_order):
             button_x = (self.width - self.button_width) // 2
             button_y = start_y + i * (self.button_height + self.button_spacing)
             self.buttons[button_key]['rect'] = pygame.Rect(button_x, button_y, self.button_width, self.button_height)
@@ -159,7 +166,7 @@ class MainMenu:
             )
 
         # 绘制标题（中文）
-        title_text = "六边形策略"
+        title_text = "拳打飞图脚踢萧瑟"
         title_surface = self.title_font.render(title_text, True, (255, 215, 0))
         title_rect = title_surface.get_rect(center=(self.width // 2, 150))
 
@@ -169,24 +176,29 @@ class MainMenu:
         self.screen.blit(shadow_surface, shadow_rect)
         self.screen.blit(title_surface, title_rect)
 
-        # 副标题（中文）
-        subtitle_text = "征服六边形世界"
-        subtitle_surface = self.small_font.render(subtitle_text, True, (200, 200, 200))
-        subtitle_rect = subtitle_surface.get_rect(center=(self.width // 2, 200))
-        self.screen.blit(subtitle_surface, subtitle_rect)
-
         # 绘制按钮
         for button_key, button in self.buttons.items():
             if button['rect']:
-                # 按钮背景
-                if button['hovered']:
-                    color = (80, 120, 160)
-                    border_color = (255, 215, 0)
-                    border_width = 3
+                # AI训练按钮特殊颜色
+                if button_key == 'ai_training':
+                    if button['hovered']:
+                        color = (140, 100, 180)
+                        border_color = (255, 215, 0)
+                        border_width = 3
+                    else:
+                        color = (100, 70, 130)
+                        border_color = (150, 120, 180)
+                        border_width = 2
                 else:
-                    color = (50, 70, 90)
-                    border_color = (100, 120, 140)
-                    border_width = 2
+                    # 普通按钮颜色
+                    if button['hovered']:
+                        color = (80, 120, 160)
+                        border_color = (255, 215, 0)
+                        border_width = 3
+                    else:
+                        color = (50, 70, 90)
+                        border_color = (100, 120, 140)
+                        border_width = 2
 
                 pygame.draw.rect(self.screen, color, button['rect'])
                 pygame.draw.rect(self.screen, border_color, button['rect'], border_width)
@@ -197,8 +209,15 @@ class MainMenu:
                 text_rect = text_surface.get_rect(center=button['rect'].center)
                 self.screen.blit(text_surface, text_rect)
 
+                # AI训练按钮添加小标签
+                if button_key == 'ai_training':
+                    label_text = "PPO强化学习"
+                    label_surface = self.small_font.render(label_text, True, (180, 180, 200))
+                    label_rect = label_surface.get_rect(center=(button['rect'].centerx, button['rect'].bottom + 15))
+                    self.screen.blit(label_surface, label_rect)
+
         # 版本信息（中文）
-        version_text = "版本 1.0 - 90天策略挑战"
+        version_text = "V1.0 阿丑是风华的狗"
         version_surface = self.small_font.render(version_text, True, (100, 100, 100))
         version_rect = version_surface.get_rect(bottomright=(self.width - 10, self.height - 10))
         self.screen.blit(version_surface, version_rect)
@@ -217,9 +236,166 @@ class MainMenu:
                     return GameState.MAP_EDITOR
                 elif button_key == 'start_game':
                     return GameState.GAME_PLAY
+                elif button_key == 'ai_training':  # 新增
+                    return GameState.AI_TRAINING
                 elif button_key == 'exit':
                     return 'exit'
         return None
+
+
+class AITrainingInterface:
+    """AI训练界面"""
+
+    def __init__(self, screen, width, height):
+        self.screen = screen
+        self.width = width
+        self.height = height
+
+        # 字体
+        self.title_font = get_large_font()
+        self.font = get_medium_font()
+        self.small_font = get_small_font()
+
+        # 训练状态
+        self.is_training = False
+        self.training_progress = 0
+        self.current_episode = 0
+        self.total_episodes = 500
+        self.best_exp = 0
+        self.current_exp = 0
+
+        # 训练器实例
+        self.trainer = None
+
+        # 按钮区域
+        self.start_button_rect = pygame.Rect((width - 200) // 2, 300, 200, 60)
+
+    def draw(self):
+        """绘制训练界面"""
+        self.screen.fill((30, 30, 40))
+
+        # 标题
+        title = "AI训练中心"
+        title_surface = self.title_font.render(title, True, (255, 215, 0))
+        title_rect = title_surface.get_rect(center=(self.width // 2, 50))
+        self.screen.blit(title_surface, title_rect)
+
+        # 训练状态
+        if self.is_training:
+            # 进度条
+            progress_width = 600
+            progress_height = 30
+            progress_x = (self.width - progress_width) // 2
+            progress_y = 150
+
+            # 背景
+            pygame.draw.rect(self.screen, (50, 50, 60),
+                           (progress_x, progress_y, progress_width, progress_height))
+            # 进度
+            filled_width = int(progress_width * self.training_progress)
+            pygame.draw.rect(self.screen, (100, 200, 100),
+                           (progress_x, progress_y, filled_width, progress_height))
+            # 边框
+            pygame.draw.rect(self.screen, (100, 100, 110),
+                           (progress_x, progress_y, progress_width, progress_height), 2)
+
+            # 进度文字
+            progress_text = f"Episode {self.current_episode}/{self.total_episodes}"
+            progress_surface = self.font.render(progress_text, True, (255, 255, 255))
+            progress_rect = progress_surface.get_rect(center=(self.width // 2, progress_y + progress_height // 2))
+            self.screen.blit(progress_surface, progress_rect)
+
+            # 统计信息
+            stats = [
+                f"当前经验值: {self.current_exp}",
+                f"最佳经验值: {self.best_exp}",
+                f"训练进度: {self.training_progress*100:.1f}%"
+            ]
+
+            y = 250
+            for stat in stats:
+                stat_surface = self.font.render(stat, True, (200, 200, 200))
+                stat_rect = stat_surface.get_rect(center=(self.width // 2, y))
+                self.screen.blit(stat_surface, stat_rect)
+                y += 40
+
+            # 训练提示
+            tip_text = "训练中... 请稍候"
+            tip_surface = self.small_font.render(tip_text, True, (150, 150, 150))
+            tip_rect = tip_surface.get_rect(center=(self.width // 2, 400))
+            self.screen.blit(tip_surface, tip_rect)
+
+        else:
+            # 开始训练按钮
+            pygame.draw.rect(self.screen, (80, 160, 80), self.start_button_rect)
+            pygame.draw.rect(self.screen, (120, 200, 120), self.start_button_rect, 2)
+
+            start_text = "开始训练"
+            start_surface = self.font.render(start_text, True, (255, 255, 255))
+            start_rect = start_surface.get_rect(center=self.start_button_rect.center)
+            self.screen.blit(start_surface, start_rect)
+
+            # 说明文字
+            info_texts = [
+                "点击开始训练将启动PPO强化学习算法",
+                "训练将寻找获得最高经验值的路线",
+                "训练完成后会生成最优路线报告",
+                "",
+                "注意：训练需要几分钟时间"
+            ]
+
+            y = 450
+            for text in info_texts:
+                if text:  # 跳过空行
+                    text_surface = self.small_font.render(text, True, (150, 150, 150))
+                    text_rect = text_surface.get_rect(center=(self.width // 2, y))
+                    self.screen.blit(text_surface, text_rect)
+                y += 30
+
+        # 返回按钮
+        back_text = "按 ESC 返回主菜单"
+        back_surface = self.small_font.render(back_text, True, (100, 100, 100))
+        back_rect = back_surface.get_rect(center=(self.width // 2, self.height - 30))
+        self.screen.blit(back_surface, back_rect)
+
+    def start_training(self):
+        """启动训练"""
+        self.is_training = True
+        print("启动PPO训练...")
+
+        try:
+            from rl_trainer_enhanced import PPOTrainer
+            import threading
+
+            def train_thread():
+                self.trainer = PPOTrainer()
+                # 可以减少训练轮数用于测试
+                self.trainer.train(total_episodes=100)  # 先用100轮测试
+                self.is_training = False
+                print("训练完成！")
+
+            thread = threading.Thread(target=train_thread)
+            thread.start()
+        except ImportError as e:
+            print(f"导入训练模块失败: {e}")
+            self.is_training = False
+        except Exception as e:
+            print(f"训练出错: {e}")
+            self.is_training = False
+
+    def update_progress(self, episode, exp):
+        """更新训练进度（由训练线程调用）"""
+        self.current_episode = episode
+        self.current_exp = exp
+        self.training_progress = episode / self.total_episodes
+        if exp > self.best_exp:
+            self.best_exp = exp
+
+    def handle_click(self, pos):
+        """处理点击"""
+        if not self.is_training:
+            if self.start_button_rect.collidepoint(pos):
+                self.start_training()
 
 
 class MainGame:
@@ -232,7 +408,7 @@ class MainGame:
         self.width = 1200
         self.height = 800
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("六边形策略游戏")
+        pygame.display.set_caption("火影远征模拟器")
 
         # 游戏状态
         self.current_state = GameState.MAIN_MENU
@@ -245,6 +421,7 @@ class MainGame:
         self.main_menu = MainMenu(self.screen, self.width, self.height)
         self.map_editor = None
         self.game_play = None
+        self.ai_training = None  # 新增
 
     def run(self):
         """主游戏循环"""
@@ -258,6 +435,8 @@ class MainGame:
                 self._run_map_editor()
             elif self.current_state == GameState.GAME_PLAY:
                 self._run_game_play()
+            elif self.current_state == GameState.AI_TRAINING:  # 新增
+                self._run_ai_training()
 
             pygame.display.flip()
 
@@ -284,6 +463,10 @@ class MainGame:
                         # 创建游戏模式
                         self.game_play = GamePlaySystem(self.screen, self.width, self.height)
                         self.current_state = GameState.GAME_PLAY
+                    elif result == GameState.AI_TRAINING:  # 新增
+                        # 创建AI训练界面
+                        self.ai_training = AITrainingInterface(self.screen, self.width, self.height)
+                        self.current_state = GameState.AI_TRAINING
 
         # 更新和绘制
         self.main_menu.update(dt)
@@ -321,6 +504,24 @@ class MainGame:
         elif result == 'menu':
             self.current_state = GameState.MAIN_MENU
             self.game_play = None
+
+    def _run_ai_training(self):
+        """运行AI训练界面"""
+        if not self.ai_training:
+            self.ai_training = AITrainingInterface(self.screen, self.width, self.height)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.current_state = GameState.MAIN_MENU
+                    self.ai_training = None
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.ai_training.handle_click(event.pos)
+
+        self.ai_training.draw()
 
 
 if __name__ == "__main__":

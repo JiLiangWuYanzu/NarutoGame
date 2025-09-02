@@ -16,7 +16,6 @@ from collections import deque
 from font_manager import get_font_manager, get_font, get_small_font, get_medium_font, get_large_font
 
 # 导入地图相关模块
-# 导入地图相关模块
 from map_style_config import StyleConfig, TerrainType
 from hex_map_editor_chinese import HexTile
 
@@ -88,19 +87,20 @@ class GamePlaySystem:
         self.current_team_index = 0
         self.max_teams = 1  # 当前最大队伍数
 
+        # 【重要：先初始化相机和视图相关属性】
+        self.zoom = 1.0
+        self.hex_size = 30
+        # 先给相机一个默认值，稍后会在init_first_team中更新
+        self.camera_x = width // 2
+        self.camera_y = height // 2
+
         # 地图数据
         self.hex_map: Dict[Tuple[int, int], HexTile] = {}
         self.conquered_tiles: Set[Tuple[int, int]] = set()  # 已征服的地块
         self.load_map_data()
 
-        # 初始化第一个队伍
+        # 【现在可以安全地初始化第一个队伍了】
         self.init_first_team()
-
-        # 相机和视图
-        self.camera_x = width // 2
-        self.camera_y = height // 2
-        self.zoom = 1.0
-        self.hex_size = 30
 
         # UI状态
         self.selected_tile: Optional[Tuple[int, int]] = None
@@ -124,6 +124,8 @@ class GamePlaySystem:
         self.animation_timer = 0
         self.team_animation_offset = 0
 
+        self.should_return_to_menu = False  # 返回菜单标志
+
     def get_day_of_week(self, day):
         """获取星期几（6.13是周五）
         返回值：0=周日，1=周一，2=周二...6=周六
@@ -132,6 +134,33 @@ class GamePlaySystem:
         base_day = 5  # 周五
         days_passed = day - 1
         return (base_day + days_passed) % 7
+
+    def get_date_string(self, day):
+        """获取具体日期字符串（6月13日开始）"""
+        # 起始日期：6月13日
+        start_month = 6
+        start_day = 13
+
+        # 每月天数
+        days_in_month = {
+            6: 30,  # 6月30天
+            7: 31,  # 7月31天
+            8: 31,  # 8月31天
+            9: 30   # 9月30天
+        }
+
+        # 计算当前日期
+        total_days = start_day + (day - 1)
+        current_month = start_month
+
+        # 逐月计算
+        while total_days > days_in_month.get(current_month, 30):
+            total_days -= days_in_month[current_month]
+            current_month += 1
+            if current_month > 12:
+                current_month = 1
+
+        return f"{current_month}月{total_days}日"
 
     def get_week_number(self, day):
         """获取当前是第几周"""
@@ -182,7 +211,7 @@ class GamePlaySystem:
             return False
 
         if amount % 100 != 0:
-            self.add_message("领取数量必须是100的倍数", "error")
+            self.add_message("可一次性领完也可分批领", "error")
             return False
 
         if amount > self.weekly_exp_quota:
@@ -236,6 +265,19 @@ class GamePlaySystem:
 
         # 将起始位置标记为已征服
         self.conquered_tiles.add(start_pos)
+
+        # 将相机定位到起始位置
+        self.center_camera_on_position(start_pos)
+
+        # 添加欢迎消息
+        self.add_message(f"游戏开始！起始位置: ({start_pos[0]}, {start_pos[1]})", "success")
+
+    def center_camera_on_position(self, position: Tuple[int, int]):
+        """将相机居中到指定位置"""
+        target_x, target_y = self.hex_to_pixel(*position)
+        # 调整相机使目标位置在屏幕中央
+        self.camera_x = self.width // 2 - target_x + self.camera_x
+        self.camera_y = self.height // 2 - target_y + self.camera_y
 
     def load_map_data(self):
         """加载地图数据"""
@@ -420,22 +462,78 @@ class GamePlaySystem:
 
         return None  # 没有找到路径
 
+    def find_path_to_unconquered(self, start: Tuple[int, int], end: Tuple[int, int]) -> Optional[List[Tuple[int, int]]]:
+        """寻找到未征服地块的路径（路径上的中间点必须是已征服的）"""
+        if start == end:
+            return [start]
+
+        from heapq import heappush, heappop
+
+        def heuristic(a, b):
+            # 六边形距离
+            return (abs(a[0] - b[0]) + abs(a[0] + a[1] - b[0] - b[1]) + abs(a[1] - b[1])) / 2
+
+        open_set = []
+        heappush(open_set, (0, start))
+        came_from = {}
+        g_score = {start: 0}
+        f_score = {start: heuristic(start, end)}
+
+        while open_set:
+            current = heappop(open_set)[1]
+
+            if current == end:
+                # 重建路径
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append(start)
+                path.reverse()
+                return path
+
+            for neighbor in self.get_neighbors(*current):
+                # 检查是否可通过
+                tile = self.hex_map.get(neighbor)
+                if not tile or tile.terrain_type == TerrainType.WALL:
+                    continue
+
+                # 中间节点必须是已征服的（除非是目标节点）
+                if neighbor != end and neighbor not in self.conquered_tiles:
+                    continue
+
+                tentative_g = g_score[current] + 1
+
+                if neighbor not in g_score or tentative_g < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g
+                    f_score[neighbor] = tentative_g + heuristic(neighbor, end)
+                    heappush(open_set, (f_score[neighbor], neighbor))
+
+        return None  # 没有找到路径
+
     def calculate_move_cost(self, team: Team, target: Tuple[int, int]) -> int:
-        """计算移动成本"""
+        """计算移动成本 - 修复版"""
         # 新规则：不能停留在已征服地块
         if target in self.conquered_tiles:
             return -1  # 不允许
 
-        # 移动到未征服地块
-        # 检查是否通过已征服路径
-        path = self.find_path(team.position, target, conquered_only=True)
-        if path:
-            steps = len(path)  # 包括起点
-            cost = 30 + 10 * steps
+        # 检查目标是否是墙壁
+        target_tile = self.hex_map.get(target)
+        if not target_tile or target_tile.terrain_type == TerrainType.WALL:
+            return -1
+
+        # 首先检查是否是直接相邻
+        if target in self.get_neighbors(*team.position):
+            # 直接相邻的未征服地块固定消耗50
+            cost = 50
         else:
-            # 直接相邻的未征服地块
-            if target in self.get_neighbors(*team.position):
-                cost = 50
+            # 不相邻，尝试通过已征服地块到达
+            path = self.find_path_to_unconquered(team.position, target)
+            if path:
+                # 路径长度大于2，说明是跳跃移动
+                steps = len(path)  # 包括起点和终点
+                cost = 30 + 10 * steps
             else:
                 return -1  # 无法到达
 
@@ -599,7 +697,8 @@ class GamePlaySystem:
 
         self.current_day += 1
 
-        # 获取星期几
+        # 获取日期和星期
+        date_str = self.get_date_string(self.current_day)
         day_of_week = self.get_day_of_week(self.current_day)
 
         # 发放每日粮草
@@ -620,7 +719,8 @@ class GamePlaySystem:
         elif day_of_week == 0:  # 周日
             self.auto_claim_weekly_exp()
 
-        self.add_message(f"第 {self.current_day} 天：+{daily_food} 粮草，+1000 积分，+6 行动", "info")
+        weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        self.add_message(f"第 {self.current_day} 天 ({date_str} {weekdays[day_of_week]})：+{daily_food} 粮草，+1000 积分，+6 行动", "info")
 
     def add_message(self, text: str, msg_type: str = "info"):
         """添加消息"""
@@ -811,9 +911,9 @@ class GamePlaySystem:
         return visible
 
     def draw_ui(self):
-        """绘制UI界面"""
+        """绘制UI界面 - 修复按钮布局"""
         # UI背景
-        ui_height = 180  # 增加高度以容纳更多信息
+        ui_height = 180
         ui_rect = pygame.Rect(0, self.height - ui_height, self.width, ui_height)
         pygame.draw.rect(self.screen, (40, 40, 50), ui_rect)
         pygame.draw.rect(self.screen, (80, 80, 90), ui_rect, 2)
@@ -821,17 +921,25 @@ class GamePlaySystem:
         # 左侧 - 游戏状态
         y_offset = self.height - ui_height + 10
 
-        # 第一行：天数和等级
-        day_text = f"第 {self.current_day}/{self.max_days} 天"
+        # 第一行：赛季信息
+        season_text = f"赛季: 6.13-9.11"
+        season_surface = self.small_font.render(season_text, True, (180, 180, 180))
+        self.screen.blit(season_surface, (10, y_offset))
+
+        # 第二行：天数和日期
+        date_str = self.get_date_string(self.current_day)
+        day_of_week = self.get_day_of_week(self.current_day)
+        weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        day_date_text = f"第 {self.current_day}/{self.max_days} 天  {date_str} {weekdays[day_of_week]}"
+        day_date_surface = self.font.render(day_date_text, True, (255, 255, 255))
+        self.screen.blit(day_date_surface, (10, y_offset + 20))
+
+        # 第三行：等级
         level_text = f"等级 {self.level} ({self.experience} 经验)"
-
-        day_surface = self.font.render(day_text, True, (255, 255, 255))
         level_surface = self.font.render(level_text, True, (255, 215, 0))
+        self.screen.blit(level_surface, (10, y_offset + 45))
 
-        self.screen.blit(day_surface, (10, y_offset))
-        self.screen.blit(level_surface, (10, y_offset + 25))
-
-        # 第二行：资源
+        # 第四行：资源
         food_text = f"粮草: {self.food}"
         score_text = f"积分: {self.conquest_score}"
 
@@ -843,18 +951,18 @@ class GamePlaySystem:
         food_surface = self.font.render(food_text, True, food_color)
         score_surface = self.font.render(score_text, True, (255, 255, 255))
 
-        self.screen.blit(food_surface, (10, y_offset + 50))
-        self.screen.blit(score_surface, (10, y_offset + 75))
+        self.screen.blit(food_surface, (10, y_offset + 70))
+        self.screen.blit(score_surface, (10, y_offset + 95))
 
-        # 第三行：特殊道具和周经验
+        # 第五行：特殊道具和周经验
         thunder_text = f"飞雷神: {self.thunder_god_items}"
         week_exp_text = f"周经验: {self.weekly_exp_claimed}/500 (余{self.weekly_exp_quota})"
 
         thunder_surface = self.font.render(thunder_text, True, (255, 200, 255))
         week_surface = self.font.render(week_exp_text, True, (200, 255, 200))
 
-        self.screen.blit(thunder_surface, (10, y_offset + 100))
-        self.screen.blit(week_surface, (10, y_offset + 125))
+        self.screen.blit(thunder_surface, (10, y_offset + 120))
+        self.screen.blit(week_surface, (10, y_offset + 145))
 
         # 中间 - 队伍信息
         x_offset = 350
@@ -885,96 +993,179 @@ class GamePlaySystem:
             self.screen.blit(pos_surface, (team_x + 10, y_offset + 30))
             self.screen.blit(action_surface, (team_x + 10, y_offset + 50))
 
-        # 右侧 - 操作提示
-        hints_x = self.width - 300
-        hints = [
-            "Tab: 切换队伍",
-            "点击: 选择/移动",
-            "C: 征服地块",
-            "N: 下一天",
-            "W: 领取周经验",
-            "T: 飞雷神模式",
-            "ESC: 返回菜单"
+        # 右侧 - 功能按钮（修改：两列布局）
+        button_x = self.width - 260  # 调整起始位置
+        button_width = 120
+        button_height = 30  # 减小按钮高度
+        button_spacing = 5
+
+        # 存储按钮区域用于点击检测
+        self.buttons = []
+
+        buttons_data = [
+            ("切换队伍", (100, 150, 200), self.can_switch_team),
+            ("征服地块", (200, 100, 100), self.can_conquer),
+            ("下一天", (100, 200, 100), lambda: True),
+            ("领取经验", (200, 200, 100), lambda: self.weekly_exp_quota > 0),
+            ("飞雷神", (200, 100, 200), lambda: self.thunder_god_items > 0),
+            ("返回菜单", (150, 150, 150), lambda: True),
         ]
 
-        for i, hint in enumerate(hints):
-            hint_surface = self.small_font.render(hint, True, (150, 150, 150))
-            self.screen.blit(hint_surface, (hints_x, y_offset + i * 18))
+        # 两列布局
+        for i, (text, color, can_use) in enumerate(buttons_data):
+            col = i % 2  # 0或1，决定在哪一列
+            row = i // 2  # 决定在第几行
 
-    def draw_weekly_exp_ui(self):
-        """绘制周经验领取界面"""
-        # 半透明背景
-        overlay = pygame.Surface((self.width, self.height))
-        overlay.set_alpha(200)
-        overlay.fill((0, 0, 0))
-        self.screen.blit(overlay, (0, 0))
+            button_x_pos = button_x + col * (button_width + button_spacing * 2)
+            button_y_pos = y_offset + row * (button_height + button_spacing) + 20  # 添加顶部间距
 
-        # 窗口
-        window_width = 500
-        window_height = 400
-        window_x = (self.width - window_width) // 2
-        window_y = (self.height - window_height) // 2
+            button_rect = pygame.Rect(button_x_pos, button_y_pos, button_width, button_height)
 
-        window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
-        pygame.draw.rect(self.screen, (50, 50, 60), window_rect)
-        pygame.draw.rect(self.screen, (100, 100, 110), window_rect, 3)
+            # 检查按钮是否可用
+            is_enabled = can_use()
 
-        # 标题
-        title = "领取周经验"
-        title_surface = self.large_font.render(title, True, (255, 215, 0))
-        title_rect = title_surface.get_rect(centerx=window_x + window_width // 2, y=window_y + 20)
-        self.screen.blit(title_surface, title_rect)
-
-        # 信息
-        y = window_y + 80
-        info_lines = [
-            f"本周剩余额度: {self.weekly_exp_quota}/500",
-            f"已领取次数: {self.weekly_claim_count}/5",
-            f"当前经验: {self.experience} (等级 {self.level})"
-        ]
-
-        for line in info_lines:
-            text_surface = self.font.render(line, True, (255, 255, 255))
-            text_rect = text_surface.get_rect(centerx=window_x + window_width // 2, y=y)
-            self.screen.blit(text_surface, text_rect)
-            y += 35
-
-        # 领取按钮
-        button_y = window_y + 220
-        amounts = [100, 200, 300, 400, 500]
-        button_width = 80
-        button_height = 40
-        button_spacing = 10
-        total_width = len(amounts) * button_width + (len(amounts) - 1) * button_spacing
-        start_x = window_x + (window_width - total_width) // 2
-
-        for i, amount in enumerate(amounts):
-            button_x = start_x + i * (button_width + button_spacing)
-            button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
-
-            # 检查是否可领取
-            can_claim = (amount <= self.weekly_exp_quota and
-                        self.weekly_claim_count < 5)
-
-            if can_claim:
-                pygame.draw.rect(self.screen, (80, 120, 160), button_rect)
-                text_color = (255, 255, 255)
+            # 绘制按钮背景
+            if is_enabled:
+                # 鼠标悬停检测
+                mouse_pos = pygame.mouse.get_pos()
+                if button_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, tuple(min(255, c + 30) for c in color), button_rect)
+                else:
+                    pygame.draw.rect(self.screen, color, button_rect)
             else:
                 pygame.draw.rect(self.screen, (60, 60, 70), button_rect)
-                text_color = (150, 150, 150)
 
+            # 绘制按钮边框
             pygame.draw.rect(self.screen, (100, 100, 110), button_rect, 2)
 
-            text_surface = self.font.render(str(amount), True, text_color)
+            # 绘制按钮文字
+            text_color = (255, 255, 255) if is_enabled else (120, 120, 120)
+            text_surface = self.small_font.render(text, True, text_color)  # 使用小字体
             text_rect = text_surface.get_rect(center=button_rect.center)
             self.screen.blit(text_surface, text_rect)
 
-        # 关闭提示
-        close_text = "按 ESC 或 W 关闭"
-        close_surface = self.small_font.render(close_text, True, (150, 150, 150))
-        close_rect = close_surface.get_rect(centerx=window_x + window_width // 2,
-                                           y=window_y + window_height - 40)
-        self.screen.blit(close_surface, close_rect)
+            # 存储按钮信息
+            self.buttons.append({
+                'rect': button_rect,
+                'action': text,
+                'enabled': is_enabled
+            })
+
+    def can_switch_team(self):
+        """检查是否可以切换队伍"""
+        return len(self.teams) > 1
+
+    def can_conquer(self):
+        """检查是否可以征服当前地块"""
+        if not self.teams:
+            return False
+        team = self.teams[self.current_team_index]
+        return team.position not in self.conquered_tiles
+
+    def handle_mouse_click(self, pos):
+        """处理鼠标点击 - 合并版本"""
+        x, y = pos
+
+        # 周经验界面点击处理
+        if self.game_state == GameState.WEEKLY_EXP_CLAIM:
+            # 检查领取按钮
+            window_width = 500
+            window_height = 400
+            window_x = (self.width - window_width) // 2
+            window_y = (self.height - window_height) // 2
+            button_y = window_y + 260  # 与draw_weekly_exp_ui中保持一致
+
+            amounts = [100, 200, 300, 400, 500]
+            button_width = 80
+            button_height = 40
+            button_spacing = 10
+            total_width = len(amounts) * button_width + (len(amounts) - 1) * button_spacing
+            start_x = window_x + (window_width - total_width) // 2
+
+            for i, amount in enumerate(amounts):
+                button_x = start_x + i * (button_width + button_spacing)
+                button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+
+                if button_rect.collidepoint(pos):
+                    if self.claim_weekly_exp(amount):
+                        # 成功领取后可以选择关闭界面
+                        if self.weekly_exp_quota == 0:
+                            self.game_state = GameState.PLAYING
+            return
+
+        # 检查是否点击UI区域
+        if y > self.height - 180:
+            # 检查按钮点击
+            if hasattr(self, 'buttons'):
+                for button in self.buttons:
+                    if button['rect'].collidepoint(pos) and button['enabled']:
+                        self.handle_button_action(button['action'])
+                        return
+            return
+
+        # 转换为六边形坐标
+        hex_pos = self.pixel_to_hex(x, y)
+
+        if hex_pos in self.hex_map:
+            # 飞雷神模式
+            if self.thunder_god_mode:
+                if hex_pos in self.valid_thunder_targets:
+                    current_team = self.teams[self.current_team_index]
+                    if self.use_thunder_god(current_team, hex_pos):
+                        self.thunder_god_mode = False
+                        self.valid_thunder_targets.clear()
+                return
+
+            # 正常模式
+            if self.teams:
+                current_team = self.teams[self.current_team_index]
+
+                # 如果点击当前位置，尝试征服
+                if hex_pos == current_team.position:
+                    if hex_pos not in self.conquered_tiles:
+                        self.conquer_tile(current_team)
+                # 否则尝试移动
+                else:
+                    self.move_team(current_team, hex_pos)
+
+            self.selected_tile = hex_pos
+
+    def handle_button_action(self, action):
+        """处理按钮动作"""
+        if action == "切换队伍":
+            if len(self.teams) > 1:
+                self.current_team_index = (self.current_team_index + 1) % len(self.teams)
+                team = self.teams[self.current_team_index]
+                self.add_message(f"切换到队伍 {team.id}", "info")
+
+                # 将相机移动到当前队伍
+                self.center_camera_on_position(team.position)
+
+        elif action == "征服地块":
+            if self.teams:
+                current_team = self.teams[self.current_team_index]
+                self.conquer_tile(current_team)
+
+        elif action == "下一天":
+            self.next_day()
+
+        elif action == "领取经验":
+            if self.game_state == GameState.PLAYING:
+                self.game_state = GameState.WEEKLY_EXP_CLAIM
+
+        elif action == "飞雷神":
+            if self.thunder_god_items > 0:
+                self.thunder_god_mode = not self.thunder_god_mode
+                if self.thunder_god_mode:
+                    self.valid_thunder_targets = self.get_valid_thunder_targets()
+                    self.add_message(f"飞雷神模式开启，选择目标地块", "info")
+                else:
+                    self.valid_thunder_targets.clear()
+                    self.add_message("飞雷神模式关闭", "info")
+
+        elif action == "返回菜单":
+            # 这个需要在 run 方法中处理，设置一个标志
+            self.should_return_to_menu = True
 
     def draw_info_panel(self):
         """绘制信息面板"""
@@ -1067,70 +1258,95 @@ class GamePlaySystem:
             # 文字
             self.screen.blit(text_surface, text_rect)
 
-    def handle_mouse_click(self, pos):
-        """处理鼠标点击"""
-        x, y = pos
+    def draw_weekly_exp_ui(self):
+        """绘制周经验领取界面"""
+        # 背景遮罩
+        overlay = pygame.Surface((self.width, self.height))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
 
-        # 周经验界面点击处理
-        if self.game_state == GameState.WEEKLY_EXP_CLAIM:
-            # 检查领取按钮
-            window_width = 500
-            window_height = 400
-            window_x = (self.width - window_width) // 2
-            window_y = (self.height - window_height) // 2
-            button_y = window_y + 220
+        # 窗口
+        window_width = 500
+        window_height = 400
+        window_x = (self.width - window_width) // 2
+        window_y = (self.height - window_height) // 2
 
-            amounts = [100, 200, 300, 400, 500]
-            button_width = 80
-            button_height = 40
-            button_spacing = 10
-            total_width = len(amounts) * button_width + (len(amounts) - 1) * button_spacing
-            start_x = window_x + (window_width - total_width) // 2
+        # 窗口背景
+        window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
+        pygame.draw.rect(self.screen, (40, 40, 50), window_rect)
+        pygame.draw.rect(self.screen, (100, 100, 110), window_rect, 3)
 
-            for i, amount in enumerate(amounts):
-                button_x = start_x + i * (button_width + button_spacing)
-                button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+        # 标题
+        title = "周经验领取"
+        title_surface = self.large_font.render(title, True, (255, 215, 0))
+        title_rect = title_surface.get_rect(center=(self.width // 2, window_y + 40))
+        self.screen.blit(title_surface, title_rect)
 
-                if button_rect.collidepoint(pos):
-                    if self.claim_weekly_exp(amount):
-                        # 成功领取后可以选择关闭界面
-                        if self.weekly_exp_quota == 0:
-                            self.game_state = GameState.PLAYING
-            return
+        # 信息
+        info_texts = [
+            f"当前周数：第{self.get_week_number(self.current_day)}周",
+            f"可领取额度：{self.weekly_exp_quota}",
+            f"已领取：{self.weekly_exp_claimed}/500",
+            f"本周领取次数：{self.weekly_claim_count}/5",
+            "",
+            "选择领取数量 (必须是100的倍数)："
+        ]
 
-        # 检查是否点击UI区域
-        if y > self.height - 180:
-            return
+        y = window_y + 80
+        for text in info_texts:
+            if text:
+                text_surface = self.font.render(text, True, (255, 255, 255))
+                text_rect = text_surface.get_rect(center=(self.width // 2, y))
+                self.screen.blit(text_surface, text_rect)
+            y += 30
 
-        # 转换为六边形坐标
-        hex_pos = self.pixel_to_hex(x, y)
+        # 领取按钮 - 调整位置避免遮挡文字
+        button_y = window_y + 260  # 从220改为260，下移40像素
+        amounts = [100, 200, 300, 400, 500]
+        button_width = 80
+        button_height = 40
+        button_spacing = 10
 
-        if hex_pos in self.hex_map:
-            # 飞雷神模式
-            if self.thunder_god_mode:
-                if hex_pos in self.valid_thunder_targets:
-                    current_team = self.teams[self.current_team_index]
-                    if self.use_thunder_god(current_team, hex_pos):
-                        self.thunder_god_mode = False
-                        self.valid_thunder_targets.clear()
-                return
+        total_width = len(amounts) * button_width + (len(amounts) - 1) * button_spacing
+        start_x = window_x + (window_width - total_width) // 2
 
-            # 正常模式
-            if self.teams:
-                current_team = self.teams[self.current_team_index]
+        mouse_pos = pygame.mouse.get_pos()
+        for i, amount in enumerate(amounts):
+            button_x = start_x + i * (button_width + button_spacing)
+            button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
 
-                # 如果点击当前位置，尝试征服
-                if hex_pos == current_team.position:
-                    if hex_pos not in self.conquered_tiles:
-                        self.conquer_tile(current_team)
-                # 否则尝试移动
+            # 检查是否可以领取
+            can_claim = (amount <= self.weekly_exp_quota and
+                        self.weekly_claim_count < 5)
+
+            # 按钮颜色
+            if can_claim:
+                if button_rect.collidepoint(mouse_pos):
+                    color = (100, 200, 100)
                 else:
-                    self.move_team(current_team, hex_pos)
+                    color = (80, 160, 80)
+            else:
+                color = (60, 60, 70)
 
-            self.selected_tile = hex_pos
+            pygame.draw.rect(self.screen, color, button_rect)
+            pygame.draw.rect(self.screen, (100, 100, 110), button_rect, 2)
+
+            # 按钮文字
+            text_color = (255, 255, 255) if can_claim else (120, 120, 120)
+            text_surface = self.font.render(str(amount), True, text_color)
+            text_rect = text_surface.get_rect(center=button_rect.center)
+            self.screen.blit(text_surface, text_rect)
+
+        # 关闭提示
+        close_text = "按 ESC 或 W 键关闭"
+        close_surface = self.small_font.render(close_text, True, (180, 180, 180))
+        close_rect = close_surface.get_rect(center=(self.width // 2, window_y + window_height - 30))
+        self.screen.blit(close_surface, close_rect)
 
     def handle_keyboard(self, key):
-        """处理键盘输入"""
+        """处理键盘输入 - 修复版"""
+        # 先检查是否在周经验界面
         if self.game_state == GameState.WEEKLY_EXP_CLAIM:
             if key == pygame.K_ESCAPE or key == pygame.K_w:
                 self.game_state = GameState.PLAYING
@@ -1140,6 +1356,11 @@ class GamePlaySystem:
                 self.claim_weekly_exp(amount)
             return
 
+        # 游戏结束状态不处理其他按键
+        if self.game_state == GameState.GAME_OVER:
+            return
+
+        # 正常游戏状态的按键处理
         if key == pygame.K_TAB:
             # 切换队伍
             if len(self.teams) > 1:
@@ -1160,14 +1381,14 @@ class GamePlaySystem:
 
         elif key == pygame.K_n:
             # 下一天
+            print("按下N键 - 进入下一天")  # 调试信息
             self.next_day()
 
         elif key == pygame.K_w:
             # 打开周经验界面
+            print("按下W键 - 打开周经验界面")  # 调试信息
             if self.game_state == GameState.PLAYING:
                 self.game_state = GameState.WEEKLY_EXP_CLAIM
-            else:
-                self.game_state = GameState.PLAYING
 
         elif key == pygame.K_t:
             # 切换飞雷神模式
@@ -1175,7 +1396,7 @@ class GamePlaySystem:
                 self.thunder_god_mode = not self.thunder_god_mode
                 if self.thunder_god_mode:
                     self.valid_thunder_targets = self.get_valid_thunder_targets()
-                    self.add_message(f"飞雷神模式开启！选择目标地块", "info")
+                    self.add_message(f"飞雷神模式开启，选择目标地块", "info")
                 else:
                     self.valid_thunder_targets.clear()
                     self.add_message("飞雷神模式关闭", "info")
@@ -1187,6 +1408,17 @@ class GamePlaySystem:
                 target_x, target_y = self.hex_to_pixel(*team.position)
                 self.camera_x = self.width // 2 - (target_x - self.camera_x)
                 self.camera_y = self.height // 2 - (target_y - self.camera_y)
+
+        # 添加调试快捷键
+        elif key == pygame.K_F1:
+            # 调试信息
+            print(f"当前游戏状态: {self.game_state}")
+            print(f"当前天数: {self.current_day}/{self.max_days}")
+            print(f"队伍数量: {len(self.teams)}")
+            if self.teams:
+                team = self.teams[self.current_team_index]
+                print(f"当前队伍位置: {team.position}")
+                print(f"行动点: {team.action_points}/{team.max_action_points}")
 
     def update(self, dt):
         """更新游戏状态"""
@@ -1249,8 +1481,6 @@ class GamePlaySystem:
                 self.screen.blit(stat_surface, stat_rect)
             y += 40
 
-    # 在 game_play_system.py 的 run 方法中，将鼠标事件处理部分替换为以下代码：
-
     def run(self):
         """游戏主循环"""
         running = True
@@ -1258,35 +1488,37 @@ class GamePlaySystem:
         while running:
             dt = self.clock.tick(60) / 1000.0
 
+            # 检查是否需要返回菜单
+            if self.should_return_to_menu:
+                return 'menu'
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return 'quit'
 
                 elif event.type == pygame.KEYDOWN:
+                    # 保留ESC键功能
                     if event.key == pygame.K_ESCAPE:
                         if self.game_state == GameState.WEEKLY_EXP_CLAIM:
                             self.game_state = GameState.PLAYING
                         else:
                             return 'menu'
+                    # 其他键盘快捷键仍然可用（可选）
                     else:
                         self.handle_keyboard(event.key)
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # 左键 - 点击或开始拖动
-                        # 检查是否点击UI区域
-                        if event.pos[1] > self.height - 180:
-                            # UI区域点击，不处理拖动
-                            continue
-
-                        # 记录拖动开始状态
-                        self.is_dragging = True
-                        self.drag_start_pos = event.pos
-                        self.drag_start_camera = (self.camera_x, self.camera_y)
-
-                        # 同时处理点击
+                        # 优先处理按钮点击
                         self.handle_mouse_click(event.pos)
 
-                    elif event.button == 3:  # 右键 - 专用拖动（保持原有功能）
+                        # 如果不是UI区域，处理拖动
+                        if event.pos[1] <= self.height - 180:
+                            self.is_dragging = True
+                            self.drag_start_pos = event.pos
+                            self.drag_start_camera = (self.camera_x, self.camera_y)
+
+                    elif event.button == 3:  # 右键 - 专用拖动
                         self.is_dragging = True
                         self.drag_start_pos = event.pos
                         self.drag_start_camera = (self.camera_x, self.camera_y)
