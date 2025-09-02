@@ -681,6 +681,9 @@ class GamePlaySystem:
         # 获取可见范围
         visible_tiles = self.get_visible_tiles()
 
+        # 创建一个Surface用于所有已征服地块的半透明覆盖（性能优化）
+        overlay_surface = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
+
         # 绘制所有地块
         for pos in visible_tiles:
             if pos not in self.hex_map:
@@ -689,36 +692,54 @@ class GamePlaySystem:
             tile = self.hex_map[pos]
             center = self.hex_to_pixel(*pos)
 
-            # 获取地块颜色
+            # 获取地块颜色（不再对已征服地块做颜色调整）
             color = self.style.TERRAIN_COLORS[tile.terrain_type]
-
-            # 如果已征服，颜色变亮
-            if pos in self.conquered_tiles:
-                color = tuple(min(255, int(c * 1.3)) for c in color)
 
             # 飞雷神模式下高亮有效目标
             if self.thunder_god_mode and pos in self.valid_thunder_targets:
                 color = tuple(min(255, int(c * 1.5)) for c in color)
 
             # 绘制六边形
-            border_color = (80, 80, 90)
+            border_color = (80, 80, 90)  # 默认边框
             if pos == self.selected_tile:
                 border_color = (255, 215, 0)  # 金色边框
             elif pos in self.conquered_tiles:
-                border_color = (100, 255, 100)  # 绿色边框
+                border_color = (50, 50, 60)  # 已征服地块使用更暗的边框
             elif self.thunder_god_mode and pos in self.valid_thunder_targets:
                 border_color = (255, 100, 255)  # 紫色边框
 
             self.draw_hexagon(center, color, border_color)
+
+            # 收集已征服地块的多边形点，稍后统一绘制覆盖层
+            if pos in self.conquered_tiles:
+                points = []
+                for i in range(6):
+                    angle = math.pi / 3 * i
+                    x = center[0] + self.hex_size * self.zoom * math.cos(angle)
+                    y = center[1] + self.hex_size * self.zoom * math.sin(angle)
+                    points.append((x, y))
+
+                # 绘制到覆盖层Surface上（半透明黑色）
+                pygame.draw.polygon(overlay_surface, (0, 0, 0, 120), points)  # 黑色，alpha=120
 
             # 绘制地块名称（缩放时调整）
             if self.zoom >= 0.5 and tile.terrain_type != TerrainType.WALL:
                 name = self.style.get_terrain_name_chinese(tile.terrain_type)
                 font_size = max(8, int(16 * self.zoom))
                 font = get_font(font_size)
-                text = font.render(name[:8], True, (255, 255, 255))
+
+                # 已征服地块的文字颜色调整为更亮，以便在黑色覆盖上仍然可见
+                if pos in self.conquered_tiles:
+                    text_color = (180, 180, 180)  # 灰色文字
+                else:
+                    text_color = (255, 255, 255)  # 白色文字
+
+                text = font.render(name[:8], True, text_color)
                 text_rect = text.get_rect(center=(int(center[0]), int(center[1])))
                 self.screen.blit(text, text_rect)
+
+        # 一次性绘制所有已征服地块的覆盖层
+        self.screen.blit(overlay_surface, (0, 0))
 
         # 绘制路径预览
         if self.path_preview:
