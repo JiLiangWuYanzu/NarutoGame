@@ -1,7 +1,7 @@
 """
-六边形地图策略游戏 - PPO强化学习训练器（GPU加速版）
-支持CUDA加速、混合精度训练、并行数据收集
-根据实际游戏规则修正版本
+六边形地图策略游戏 - PPO强化学习训练器（修复版v5）
+完全匹配实际游戏规则，包含周经验系统
+修复所有缩进问题
 """
 
 import numpy as np
@@ -12,42 +12,31 @@ from torch.distributions import Categorical
 from torch.cuda.amp import autocast, GradScaler
 import torch.nn.functional as F
 import json
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import pickle
-from collections import deque, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional
 import os
 from datetime import datetime
 import time
 from tqdm import tqdm
-import multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 
 
-# ========== 设备配置 ==========
 def setup_device():
     """设置计算设备"""
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print(f"使用GPU: {torch.cuda.get_device_name(0)}")
         print(f"GPU内存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
-
-        # 设置CUDA优化
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
-
-        # 清理GPU缓存
         torch.cuda.empty_cache()
     else:
         device = torch.device("cpu")
         print("GPU不可用，使用CPU训练")
-
     return device
 
 
-# ========== 数据类（保持不变） ==========
 @dataclass
 class DayAction:
     """记录每天的行动"""
@@ -61,19 +50,6 @@ class DayAction:
     resources_after: Dict
 
 
-@dataclass
-class Episode:
-    """记录完整的一局游戏"""
-    episode_id: int
-    total_reward: float
-    final_exp: int
-    final_day: int
-    actions: List[DayAction] = field(default_factory=list)
-    conquered_tiles: List[Tuple[int, int]] = field(default_factory=list)
-    treasure_order: List[int] = field(default_factory=list)
-
-
-# ========== 游戏核心逻辑（根据实际规则修正） ==========
 class GameCore:
     """无GUI的游戏核心逻辑，完全匹配实际游戏规则"""
 
@@ -81,22 +57,76 @@ class GameCore:
         with open(map_file, 'r') as f:
             self.map_data = json.load(f)
 
+        # 初始化地块属性
+        self.terrain_properties = {
+            'NORMAL_LV1': {'food_cost': 100, 'exp_gain': 35, 'score_cost': 0},
+            'NORMAL_LV2': {'food_cost': 110, 'exp_gain': 40, 'score_cost': 0},
+            'NORMAL_LV3': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'NORMAL_LV4': {'food_cost': 130, 'exp_gain': 50, 'score_cost': 0},
+            'NORMAL_LV5': {'food_cost': 140, 'exp_gain': 55, 'score_cost': 0},
+            'NORMAL_LV6': {'food_cost': 150, 'exp_gain': 60, 'score_cost': 0},
+            'DUMMY_LV1': {'food_cost': 100, 'exp_gain': 35, 'score_cost': 0},
+            'DUMMY_LV2': {'food_cost': 100, 'exp_gain': 40, 'score_cost': 0},
+            'DUMMY_LV3': {'food_cost': 100, 'exp_gain': 45, 'score_cost': 0},
+            'DUMMY_LV4': {'food_cost': 100, 'exp_gain': 50, 'score_cost': 0},
+            'DUMMY_LV5': {'food_cost': 100, 'exp_gain': 55, 'score_cost': 0},
+            'DUMMY_LV6': {'food_cost': 100, 'exp_gain': 60, 'score_cost': 0},
+            'TOWER_LV1': {'food_cost': 100, 'exp_gain': 35, 'score_cost': 0},
+            'TOWER_LV2': {'food_cost': 100, 'exp_gain': 40, 'score_cost': 0},
+            'TOWER_LV3': {'food_cost': 100, 'exp_gain': 45, 'score_cost': 0},
+            'TOWER_LV4': {'food_cost': 100, 'exp_gain': 50, 'score_cost': 0},
+            'TOWER_LV5': {'food_cost': 100, 'exp_gain': 55, 'score_cost': 0},
+            'TOWER_LV6': {'food_cost': 100, 'exp_gain': 60, 'score_cost': 0},
+            'TRAINING_GROUND': {'food_cost': 0, 'exp_gain': 520, 'score_cost': 0},
+            'BLACK_MARKET': {'food_cost': 0, 'exp_gain': 30, 'score_cost': 1000},
+            'STONE_TABLET': {'food_cost': 100, 'exp_gain': 40, 'score_cost': 0},
+            'TENT': {'food_cost': 0, 'exp_gain': 0, 'score_cost': 0},
+            'TREASURE_1': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'TREASURE_2': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'TREASURE_3': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'TREASURE_4': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'TREASURE_5': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'TREASURE_6': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'TREASURE_7': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'TREASURE_8': {'food_cost': 120, 'exp_gain': 45, 'score_cost': 0},
+            'BOSS_GAARA': {'food_cost': 200, 'exp_gain': 500, 'score_cost': 0},
+            'BOSS_ZETSU': {'food_cost': 200, 'exp_gain': 1000, 'score_cost': 0},
+            'BOSS_DARTMAN': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'BOSS_SHIRA': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'BOSS_KUSHINA': {'food_cost': 200, 'exp_gain': 1000, 'score_cost': 0},
+            'BOSS_KISAME': {'food_cost': 200, 'exp_gain': 500, 'score_cost': 0},
+            'BOSS_HANA': {'food_cost': 200, 'exp_gain': 300, 'score_cost': 0},
+            'WALL': {'food_cost': -1, 'exp_gain': 0, 'score_cost': 0},
+            'START_POSITION': {'food_cost': 0, 'exp_gain': 0, 'score_cost': 0},
+        }
+
         self.action_history = []
         self.reset()
 
     def reset(self):
-        """重置游戏状态 - 使用实际游戏的初始值"""
+        """重置游戏状态"""
         self.current_day = 1
-        self.experience = 0  # 修正：实际游戏初始经验为0
+        self.experience = 0
         self.level = 1
-        self.food = 6800  # 修正：实际游戏初始粮草为6800
-        self.conquest_score = 1000  # 修正：实际游戏初始征服积分为1000
-        self.thunder_god_items = 1  # 修正：实际游戏初始1个飞雷神道具
+        self.food = 6800
+        self.conquest_score = 1000
+        self.thunder_god_items = 1
         self.treasures_conquered = set()
         self.has_treasure_buff = False
         self.conquered_tiles = set()
 
-        # 队伍管理 - 根据实际游戏规则
+        # 周经验系统
+        self.weekly_exp_quota = 500
+        self.weekly_exp_claimed = 0
+        self.weekly_claim_count = 0
+        self.current_week = 1
+
+        # 效率追踪
+        self.last_conquer_day = 0
+        self.consecutive_conquers = 0
+        self.total_wasted_actions = 0
+
+        # 队伍管理
         self.teams = {
             1: {'pos': None, 'action_points': 6, 'max_action_points': 18, 'active': True}
         }
@@ -112,46 +142,52 @@ class GameCore:
             q, r = tile_data['q'], tile_data['r']
             self.hex_map[(q, r)] = tile_data
 
-        # 找起始位置 - 修复版本
+        # 找起始位置
         self.start_pos = None
         for pos, tile in self.hex_map.items():
-            terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
-            if terrain_type == 'START_POSITION':
+            terrain_type = str(tile.get('terrain_type', ''))
+            if terrain_type == 'START_POSITION' or terrain_type == '0':
                 self.start_pos = pos
                 self.conquered_tiles.add(pos)
-                print(f"找到起始位置: {pos}")
                 break
 
         if not self.start_pos:
-            # 如果没有找到起始位置，使用地图中的第一个非墙壁位置
             for pos, tile in self.hex_map.items():
                 terrain_type = str(tile.get('terrain_type', ''))
-                if terrain_type != 'WALL':
+                if terrain_type != 'WALL' and terrain_type != '30':
                     self.start_pos = pos
                     self.conquered_tiles.add(pos)
-                    print(f"使用默认起始位置: {pos}")
                     break
 
         if not self.start_pos:
-            # 最后的备选方案：使用地图中的任意位置
             self.start_pos = next(iter(self.hex_map.keys()))
             self.conquered_tiles.add(self.start_pos)
-            print(f"使用地图首个位置作为起始点: {self.start_pos}")
 
         self.teams[1]['pos'] = self.start_pos
-
-        # 检查队伍解锁
         self.check_team_unlock()
 
+    def get_day_of_week(self, day):
+        """获取星期几"""
+        base_day = 5
+        days_passed = day - 1
+        return (base_day + days_passed) % 7
+
+    def get_week_number(self, day):
+        """获取当前是第几周"""
+        if day <= 3:
+            return 1
+        else:
+            days_from_first_monday = day - 4
+            return 2 + (days_from_first_monday // 7)
+
     def calculate_level(self):
-        """计算当前等级 - 根据实际游戏规则"""
+        """计算当前等级"""
         self.level = 1 + (self.experience // 100)
 
     def check_team_unlock(self):
-        """检查是否解锁新队伍 - 根据实际游戏规则"""
+        """检查是否解锁新队伍"""
         self.calculate_level()
 
-        # 20级解锁二队
         if self.level >= 20 and self.max_teams == 1:
             self.max_teams = 2
             if len(self.teams) == 1:
@@ -162,7 +198,6 @@ class GameCore:
                     'active': True
                 }
 
-        # 60级解锁三队
         if self.level >= 60 and self.max_teams == 2:
             self.max_teams = 3
             if len(self.teams) == 2:
@@ -174,7 +209,7 @@ class GameCore:
                 }
 
     def get_daily_food(self):
-        """根据等级获取每日粮草 - 根据实际游戏规则"""
+        """根据等级获取每日粮草"""
         if self.level <= 4:
             return 800
         elif self.level <= 14:
@@ -194,10 +229,23 @@ class GameCore:
         else:
             return 1600
 
+    def get_tent_food_gain(self, day):
+        """获取帐篷粮草收益"""
+        if day <= 10:
+            return 300
+        elif day <= 20:
+            return 250
+        elif day <= 35:
+            return 200
+        elif day <= 50:
+            return 150
+        else:
+            return 100
+
     def apply_cost_reduction(self, cost):
-        """应用秘宝buff减免 - 根据实际游戏规则"""
+        """应用秘宝buff减免"""
         if self.has_treasure_buff:
-            return int(cost * 0.8)  # 20%减免
+            return int(cost * 0.8)
         return cost
 
     def get_neighbors(self, pos):
@@ -210,14 +258,13 @@ class GameCore:
 
         for dq, dr in directions:
             neighbor_pos = (q + dq, r + dr)
-            # 只返回存在于地图中的邻居
             if neighbor_pos in self.hex_map:
                 neighbors.append(neighbor_pos)
 
         return neighbors
 
-    def find_path_to_unconquered(self, start: Tuple[int, int], end: Tuple[int, int]) -> Optional[List[Tuple[int, int]]]:
-        """寻找到未征服地块的路径（路径上的中间点必须是已征服的） - 根据实际游戏规则"""
+    def find_path_to_unconquered(self, start, end):
+        """寻找到未征服地块的路径"""
         if start == end:
             return [start]
 
@@ -236,7 +283,6 @@ class GameCore:
             current = heappop(open_set)[1]
 
             if current == end:
-                # 重建路径
                 path = []
                 while current in came_from:
                     path.append(current)
@@ -246,16 +292,14 @@ class GameCore:
                 return path
 
             for neighbor in self.get_neighbors(current):
-                # 检查是否可通过
                 tile = self.hex_map.get(neighbor)
                 if not tile:
                     continue
 
-                terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
-                if terrain_type == 'WALL':
+                terrain_type = str(tile.get('terrain_type', ''))
+                if terrain_type == 'WALL' or terrain_type == '30':
                     continue
 
-                # 中间节点必须是已征服的（除非是目标节点）
                 if neighbor != end and neighbor not in self.conquered_tiles:
                     continue
 
@@ -267,74 +311,67 @@ class GameCore:
                     f_score[neighbor] = tentative_g + heuristic(neighbor, end)
                     heappush(open_set, (f_score[neighbor], neighbor))
 
-        return None  # 没有找到路径
+        return None
 
     def calculate_move_cost(self, target):
-        """计算移动成本 - 根据实际游戏规则"""
+        """计算移动成本"""
         team = self.teams[self.current_team]
 
-        # 检查目标位置是否存在于地图中
         if target not in self.hex_map:
-            return -1  # 无法移动到不存在的位置
+            return -1
 
-        # 不能停留在已征服地块
         if target in self.conquered_tiles:
             return -1
 
-        # 检查是否是墙壁
         target_tile = self.hex_map.get(target)
         if not target_tile:
             return -1
 
-        terrain_type = str(target_tile.get('terrain_type', ''))  # 强制转换为字符串
-        if terrain_type == 'WALL':
+        terrain_type = str(target_tile.get('terrain_type', ''))
+        if terrain_type == 'WALL' or terrain_type == '30':
             return -1
 
-        # 首先检查是否是直接相邻
         neighbors = self.get_neighbors(team['pos'])
         if target in neighbors:
-            # 直接相邻的未征服地块固定消耗50
             cost = 50
         else:
-            # 不相邻，尝试通过已征服地块到达
             path = self.find_path_to_unconquered(team['pos'], target)
             if path:
-                # 路径长度大于2，说明是跳跃移动
-                steps = len(path)  # 包括起点和终点
+                steps = len(path)
                 cost = 30 + 10 * steps
             else:
-                return -1  # 无法到达
+                return -1
 
-        # 应用秘宝buff
         return self.apply_cost_reduction(cost)
 
     def get_tile_properties(self, tile):
-        """获取地块属性 - 修复数据类型问题"""
-        terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
+        """获取地块属性"""
+        terrain_type = str(tile.get('terrain_type', ''))
 
-        # 根据地形类型返回属性
-        terrain_props = {
-            'NORMAL_LV1': {'food_cost': 100, 'exp_gain': 10, 'score_cost': 0},
-            'NORMAL_LV2': {'food_cost': 200, 'exp_gain': 20, 'score_cost': 0},
-            'DUMMY_LV1': {'food_cost': 150, 'exp_gain': 15, 'score_cost': 0},
-            'TREASURE_1': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_2': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_3': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_4': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_5': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_6': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_7': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TREASURE_8': {'food_cost': 500, 'exp_gain': 100, 'score_cost': 0},
-            'TENT': {'food_cost': 0, 'exp_gain': 50, 'score_cost': 0},
-            'BLACK_MARKET': {'food_cost': 300, 'exp_gain': 30, 'score_cost': 0},
-            'BOSS_ZETSU': {'food_cost': 1000, 'exp_gain': 200, 'score_cost': 0},
-            'BOSS_KUSHINA': {'food_cost': 1000, 'exp_gain': 200, 'score_cost': 0},
+        # 处理数字类型的terrain_type
+        terrain_map = {
+            '0': 'START_POSITION', '1': 'NORMAL_LV1', '2': 'NORMAL_LV2',
+            '3': 'NORMAL_LV3', '4': 'NORMAL_LV4', '5': 'NORMAL_LV5',
+            '6': 'NORMAL_LV6', '7': 'DUMMY_LV1', '8': 'DUMMY_LV2',
+            '9': 'DUMMY_LV3', '10': 'DUMMY_LV4', '11': 'DUMMY_LV5',
+            '12': 'DUMMY_LV6', '13': 'TRAINING_GROUND', '14': 'TOWER_LV1',
+            '15': 'TOWER_LV2', '16': 'TOWER_LV3', '17': 'TOWER_LV4',
+            '18': 'TOWER_LV5', '19': 'TOWER_LV6', '20': 'BLACK_MARKET',
+            '21': 'STONE_TABLET', '22': 'TREASURE_1', '23': 'TREASURE_2',
+            '24': 'TREASURE_3', '25': 'TREASURE_4', '26': 'TREASURE_5',
+            '27': 'TREASURE_6', '28': 'TREASURE_7', '29': 'TREASURE_8',
+            '30': 'WALL', '31': 'BOSS_GAARA', '32': 'BOSS_ZETSU',
+            '33': 'BOSS_DARTMAN', '34': 'BOSS_SHIRA', '35': 'BOSS_KUSHINA',
+            '36': 'BOSS_KISAME', '37': 'BOSS_HANA', '38': 'TENT'
         }
 
-        return terrain_props.get(terrain_type, {'food_cost': 100, 'exp_gain': 10, 'score_cost': 0})
+        if terrain_type in terrain_map:
+            terrain_type = terrain_map[terrain_type]
+
+        return self.terrain_properties.get(terrain_type, {'food_cost': 100, 'exp_gain': 10, 'score_cost': 0})
 
     def step(self, action):
-        """执行动作并记录详细信息 - 根据实际游戏规则"""
+        """执行动作"""
         reward = 0
         done = False
         old_exp = self.experience
@@ -345,22 +382,50 @@ class GameCore:
         action_type = None
         to_pos = from_pos
 
-        # 安全检查：确保当前位置存在
         if team['pos'] and team['pos'] not in self.hex_map:
-            print(f"警告：队伍位置 {team['pos']} 不存在于地图中，重置到起始位置")
             team['pos'] = self.start_pos
             from_pos = team['pos']
 
-        if action == 0:  # 结束回合
+        if action == 0:
             action_type = 'rest'
-            self.next_day()
-            reward = -1
+            can_conquer_any = False
 
-        elif 1 <= action <= 6:  # 移动
+            if team['action_points'] > 0:
+                if team['pos'] not in self.conquered_tiles:
+                    tile = self.hex_map.get(team['pos'])
+                    if tile:
+                        props = self.get_tile_properties(tile)
+                        food_cost = self.apply_cost_reduction(props['food_cost'])
+                        if food_cost <= self.food and props['score_cost'] <= self.conquest_score:
+                            can_conquer_any = True
+
+                if not can_conquer_any:
+                    neighbors = self.get_neighbors(team['pos'])
+                    for neighbor in neighbors:
+                        if neighbor not in self.conquered_tiles:
+                            move_cost = self.calculate_move_cost(neighbor)
+                            if move_cost > 0 and move_cost <= self.food:
+                                tile = self.hex_map.get(neighbor)
+                                if tile:
+                                    props = self.get_tile_properties(tile)
+                                    total_cost = move_cost + self.apply_cost_reduction(props['food_cost'])
+                                    if total_cost <= self.food and props['score_cost'] <= self.conquest_score:
+                                        can_conquer_any = True
+                                        break
+
+            if can_conquer_any:
+                reward = -50
+                wasted_actions = sum(t['action_points'] for t in self.teams.values())
+                reward -= wasted_actions * 5
+            else:
+                reward = -1
+
+            self.next_day()
+
+        elif 1 <= action <= 6:
             neighbors = self.get_neighbors(team['pos'])
             if action - 1 < len(neighbors):
                 target = neighbors[action - 1]
-                # 双重检查目标位置
                 if target in self.hex_map:
                     cost = self.calculate_move_cost(target)
                     if cost > 0 and cost <= self.food:
@@ -368,75 +433,92 @@ class GameCore:
                         team['pos'] = target
                         to_pos = target
                         action_type = 'move'
-                        reward = -cost / 1000
+                        if target not in self.conquered_tiles:
+                            reward = 5
+                        else:
+                            reward = -10
                     else:
-                        reward = -10  # 无效移动的惩罚
+                        reward = -20
                 else:
-                    print(f"错误：尝试移动到不存在的位置 {target}")
-                    reward = -10
+                    reward = -20
 
-        elif action == 7:  # 征服
+        elif action == 7:
             current_pos = team['pos']
             if current_pos and current_pos not in self.conquered_tiles:
-                # 安全检查：确保位置存在于地图中
                 if current_pos in self.hex_map:
                     tile = self.hex_map[current_pos]
                     props = self.get_tile_properties(tile)
                     exp_gain = props['exp_gain']
                     food_cost = self.apply_cost_reduction(props['food_cost'])
+                    score_cost = props['score_cost']
 
-                    # 检查资源和行动点
-                    terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
-                    action_point_cost = 0 if terrain_type == 'TENT' else 1
+                    terrain_type = str(tile.get('terrain_type', ''))
+                    if terrain_type in ['38', 'TENT']:
+                        action_point_cost = 0
+                    else:
+                        action_point_cost = 1
 
-                    if food_cost <= self.food and team['action_points'] >= action_point_cost:
+                    if (food_cost <= self.food and
+                        score_cost <= self.conquest_score and
+                        team['action_points'] >= action_point_cost):
+
                         self.food -= food_cost
+                        self.conquest_score -= score_cost
                         self.experience += exp_gain
                         self.conquered_tiles.add(current_pos)
                         team['action_points'] -= action_point_cost
                         action_type = 'conquer'
 
-                        reward = exp_gain / 100 - food_cost / 1000
+                        base_reward = 20
+                        exp_reward = exp_gain / 20
+                        food_penalty = food_cost / 10000 if food_cost > 0 else 0
+                        reward = base_reward + exp_reward - food_penalty
 
-                        # 特殊地块效果
-                        if terrain_type == 'TENT':
-                            # 帐篷效果：+粮草 +行动点
-                            tent_food = min(800 + self.current_day * 10, 1600)  # 简化的帐篷粮草计算
+                        time_bonus = max(0, (91 - self.current_day) / 91 * 10)
+                        reward += time_bonus
+
+                        if hasattr(self, 'last_conquer_day'):
+                            if self.current_day == self.last_conquer_day:
+                                reward += 5
+                        self.last_conquer_day = self.current_day
+
+                        if terrain_type in ['38', 'TENT']:
+                            tent_food = self.get_tent_food_gain(self.current_day)
                             self.food += tent_food
                             team['action_points'] = min(team['action_points'] + 1, team['max_action_points'])
                             reward += tent_food / 1000
 
-                        # 检查秘宝
-                        if 'TREASURE' in terrain_type:
+                        if terrain_type in ['22', '23', '24', '25', '26', '27', '28', '29'] or 'TREASURE' in terrain_type:
                             try:
-                                treasure_id = int(terrain_type.split('_')[-1]) if '_' in terrain_type else 0
+                                if '_' in terrain_type:
+                                    treasure_id = int(terrain_type.split('_')[-1])
+                                else:
+                                    treasure_id = int(terrain_type) - 21
                                 self.treasures_conquered.add(treasure_id)
                                 reward += 10
 
                                 if len(self.treasures_conquered) == 8:
                                     self.has_treasure_buff = True
                                     reward += 100
-                            except (ValueError, IndexError):
-                                pass  # 忽略解析错误
+                            except:
+                                pass
 
-                        # BOSS掉落飞雷神
-                        if terrain_type in ['BOSS_ZETSU', 'BOSS_KUSHINA']:
+                        if terrain_type in ['32', '35', 'BOSS_ZETSU', 'BOSS_KUSHINA']:
                             self.thunder_god_items += 1
                             reward += 5
 
+                        if terrain_type in ['13', 'TRAINING_GROUND']:
+                            reward += 20
                     else:
-                        reward = -5  # 资源不足的惩罚
+                        reward = -5
                 else:
-                    print(f"错误：尝试征服不存在的位置 {current_pos}")
                     reward = -10
-                    # 重置到起始位置
                     team['pos'] = self.start_pos
 
-        elif action == 8:  # 飞雷神
+        elif action == 8:
             if self.thunder_god_items > 0:
                 target = self.find_nearest_unconquered_treasure()
                 if target and target in self.hex_map:
-                    # 检查是否与已征服地块相邻
                     neighbors = self.get_neighbors(target)
                     has_conquered_neighbor = any(n in self.conquered_tiles for n in neighbors)
 
@@ -449,9 +531,27 @@ class GameCore:
                     else:
                         reward = -2
                 else:
-                    reward = -2  # 没有有效目标的小惩罚
+                    reward = -2
 
-        # 记录行动
+        elif action == 9:
+            if self.weekly_exp_quota >= 100 and self.weekly_claim_count < 5:
+                claim_amount = min(100, self.weekly_exp_quota)
+
+                self.experience += claim_amount
+                self.weekly_exp_quota -= claim_amount
+                self.weekly_exp_claimed += claim_amount
+                self.weekly_claim_count += 1
+                action_type = 'claim_weekly_exp'
+
+                reward = claim_amount / 20
+
+                old_level = self.level
+                self.calculate_level()
+                if self.level > old_level:
+                    reward += 10
+            else:
+                reward = -1
+
         if action_type:
             day_action = DayAction(
                 day=self.current_day,
@@ -470,17 +570,29 @@ class GameCore:
             )
             self.action_history.append(day_action)
 
-        # 切换队伍
         if team['action_points'] <= 0:
             self.switch_to_next_team()
 
-        # 检查队伍解锁
         self.check_team_unlock()
 
-        # 检查游戏结束
         if self.current_day >= 91 or self.food <= 0:
             done = True
-            reward += self.experience / 1000
+
+            reward += self.experience / 100
+
+            tiles_conquered = len(self.conquered_tiles) - 1
+            expected_tiles = min(200, self.current_day * 2)
+
+            if tiles_conquered < expected_tiles:
+                reward -= (expected_tiles - tiles_conquered) * 10
+            else:
+                reward += (tiles_conquered - expected_tiles) * 5
+
+            if self.food > 1000:
+                reward -= self.food / 100
+
+            reward += len(self.treasures_conquered) * 20
+            reward += self.level * 10
 
         return reward, done
 
@@ -495,33 +607,46 @@ class GameCore:
                 break
 
     def next_day(self):
-        """进入下一天 - 根据实际游戏规则"""
+        """进入下一天"""
         self.current_day += 1
 
-        # 发放每日粮草
+        day_of_week = self.get_day_of_week(self.current_day)
+
+        if day_of_week == 1:
+            self.weekly_exp_quota = 500
+            self.weekly_exp_claimed = 0
+            self.weekly_claim_count = 0
+            self.current_week = self.get_week_number(self.current_day)
+
+        elif day_of_week == 0:
+            if self.weekly_exp_quota > 0:
+                self.experience += self.weekly_exp_quota
+                self.weekly_exp_quota = 0
+                self.weekly_exp_claimed = 500
+
         daily_food = self.get_daily_food()
         self.food += daily_food
 
-        # 发放每日征服积分
         self.conquest_score += 1000
 
-        # 恢复所有队伍的行动点数
         for team in self.teams.values():
             team['action_points'] = min(team['action_points'] + 6, team['max_action_points'])
 
+        self.calculate_level()
+
     def find_nearest_unconquered_treasure(self):
-        """找最近的未征服秘宝 - 修复数据类型问题"""
+        """找最近的未征服秘宝"""
         for pos, tile in self.hex_map.items():
-            terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
-            if 'TREASURE' in terrain_type and pos not in self.conquered_tiles:
+            terrain_type = str(tile.get('terrain_type', ''))
+            if (terrain_type in ['22', '23', '24', '25', '26', '27', '28', '29'] or
+                'TREASURE' in terrain_type) and pos not in self.conquered_tiles:
                 return pos
         return None
 
     def get_state(self):
-        """获取状态向量（numpy数组）"""
-        state = np.zeros(150, dtype=np.float32)
+        """获取状态向量"""
+        state = np.zeros(160, dtype=np.float32)
 
-        # 全局信息
         state[0] = self.current_day / 91
         state[1] = self.experience / 10000
         state[2] = self.food / 10000
@@ -530,14 +655,18 @@ class GameCore:
         state[5] = len(self.treasures_conquered) / 8
         state[6] = float(self.has_treasure_buff)
 
-        # 当前队伍信息
-        team = self.teams[self.current_team]
-        state[7] = team['action_points'] / 18
-        state[8] = team['pos'][0] / 30 if team['pos'] else 0
-        state[9] = team['pos'][1] / 30 if team['pos'] else 0
+        state[7] = self.weekly_exp_quota / 500
+        state[8] = self.weekly_exp_claimed / 500
+        state[9] = self.weekly_claim_count / 5
+        state[10] = self.get_day_of_week(self.current_day) / 7
+        state[11] = self.get_week_number(self.current_day) / 13
 
-        # 其他队伍位置
-        idx = 10
+        team = self.teams[self.current_team]
+        state[12] = team['action_points'] / 18
+        state[13] = team['pos'][0] / 30 if team['pos'] else 0
+        state[14] = team['pos'][1] / 30 if team['pos'] else 0
+
+        idx = 15
         for tid, t in self.teams.items():
             if tid != self.current_team and t['pos']:
                 state[idx] = t['pos'][0] / 30
@@ -545,22 +674,23 @@ class GameCore:
                 state[idx + 2] = t['action_points'] / 18
                 idx += 3
 
+        state[idx] = self.level / 100
+
         return state
 
     def get_valid_actions(self):
-        """获取有效动作列表 - 修复数据类型问题"""
-        actions = [0]  # 总是可以结束回合
+        """获取有效动作列表"""
+        actions = [0]
         team = self.teams[self.current_team]
 
         if team['pos']:
             neighbors = self.get_neighbors(team['pos'])
             for i, pos in enumerate(neighbors[:6]):
                 if pos not in self.conquered_tiles:
-                    # 检查是否是墙壁
                     tile = self.hex_map.get(pos)
                     if tile:
-                        terrain_type = str(tile.get('terrain_type', ''))  # 强制转换为字符串
-                        if terrain_type != 'WALL':
+                        terrain_type = str(tile.get('terrain_type', ''))
+                        if terrain_type != 'WALL' and terrain_type != '30':
                             actions.append(i + 1)
 
             if team['pos'] not in self.conquered_tiles and team['action_points'] > 0:
@@ -569,15 +699,16 @@ class GameCore:
         if self.thunder_god_items > 0:
             actions.append(8)
 
+        if self.weekly_exp_quota >= 100 and self.weekly_claim_count < 5:
+            actions.append(9)
+
         return actions
 
 
-# ========== PPO模型（保持不变） ==========
 class PPOModel(nn.Module):
-    def __init__(self, state_dim=150, action_dim=9, hidden_dim=512, num_layers=3):
+    def __init__(self, state_dim=160, action_dim=10, hidden_dim=512, num_layers=3):
         super(PPOModel, self).__init__()
 
-        # 使用更深的网络
         layers = []
         layers.append(nn.Linear(state_dim, hidden_dim))
         layers.append(nn.LayerNorm(hidden_dim))
@@ -591,21 +722,18 @@ class PPOModel(nn.Module):
 
         self.shared = nn.Sequential(*layers)
 
-        # Actor网络
         self.actor = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(hidden_dim // 2, action_dim)
         )
 
-        # Critic网络
         self.critic = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(hidden_dim // 2, 1)
         )
 
-        # 初始化权重
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
@@ -633,41 +761,35 @@ class PPOModel(nn.Module):
         return action, dist.log_prob(action), value
 
 
-# ========== GPU加速PPO训练器（保持主要结构不变） ==========
 class PPOTrainer:
-    def __init__(self, device, lr=1e-4, gamma=0.99, eps_clip=0.2, epochs=10,
+    def __init__(self, device, lr=5e-4, gamma=0.90, eps_clip=0.3, epochs=15,
                  batch_size=64, n_workers=4, use_amp=True):
         self.device = device
         self.game = GameCore()
 
-        # 模型和优化器
         self.model = PPOModel().to(device)
         self.optimizer = optim.AdamW(self.model.parameters(), lr=lr, weight_decay=1e-5)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=1000)
 
-        # 混合精度训练
         self.use_amp = use_amp and device.type == 'cuda'
         if self.use_amp:
             self.scaler = GradScaler()
 
-        # 超参数
         self.gamma = gamma
         self.eps_clip = eps_clip
         self.epochs = epochs
         self.batch_size = batch_size
         self.n_workers = n_workers
 
-        # 经验缓冲区（在GPU上）
         self.buffer_size = 4096
         self.reset_buffer()
 
-        # TensorBoard
         self.writer = SummaryWriter(f'runs/ppo_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
 
-        # 监控
         self.episodes = []
         self.best_exp = 0
         self.episode_count = 0
+        self.recent_exp = []
 
     def reset_buffer(self):
         """重置经验缓冲区"""
@@ -680,23 +802,19 @@ class PPOTrainer:
         self.valid_actions_list = []
 
     def collect_trajectory(self, n_steps=2048):
-        """收集轨迹数据（GPU优化）"""
+        """收集轨迹数据"""
         self.model.eval()
 
         with torch.no_grad():
             for _ in range(n_steps):
-                # 获取状态
                 state = torch.FloatTensor(self.game.get_state()).unsqueeze(0).to(self.device)
                 valid_actions = self.game.get_valid_actions()
 
-                # 获取动作
                 action, log_prob, value = self.model.get_action(state, [valid_actions])
                 action_cpu = action.item()
 
-                # 执行动作
                 reward, done = self.game.step(action_cpu)
 
-                # 存储到缓冲区
                 self.states.append(state)
                 self.actions.append(action)
                 self.rewards.append(reward)
@@ -706,21 +824,25 @@ class PPOTrainer:
                 self.valid_actions_list.append(valid_actions)
 
                 if done:
-                    # 记录episode
                     self.episode_count += 1
                     exp = self.game.experience
+                    self.recent_exp.append(exp)
+                    if len(self.recent_exp) > 100:
+                        self.recent_exp.pop(0)
 
                     self.writer.add_scalar('Episode/Experience', exp, self.episode_count)
                     self.writer.add_scalar('Episode/Day', self.game.current_day, self.episode_count)
+                    self.writer.add_scalar('Episode/Level', self.game.level, self.episode_count)
 
                     if exp > self.best_exp:
                         self.best_exp = exp
                         self.save_model('best_model.pth')
+                        print(f"\n新纪录！经验值: {exp} (第{self.episode_count}轮)")
 
                     self.game.reset()
 
     def compute_returns(self):
-        """计算折扣回报（GPU加速）"""
+        """计算折扣回报"""
         rewards = torch.FloatTensor(self.rewards).to(self.device)
         dones = torch.FloatTensor(self.dones).to(self.device)
 
@@ -733,15 +855,13 @@ class PPOTrainer:
             discounted_reward = rewards[i] + self.gamma * discounted_reward
             returns[i] = discounted_reward
 
-        # 标准化
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)
         return returns
 
     def update(self):
-        """PPO更新（GPU批处理）"""
+        """PPO更新"""
         self.model.train()
 
-        # 准备数据
         returns = self.compute_returns()
         states = torch.cat(self.states).to(self.device)
         actions = torch.cat(self.actions).to(self.device)
@@ -749,11 +869,9 @@ class PPOTrainer:
         old_values = torch.cat(self.values).detach().squeeze()
         advantages = returns - old_values
 
-        # 创建数据集
         dataset_size = len(states)
 
         for epoch in range(self.epochs):
-            # 打乱数据
             indices = torch.randperm(dataset_size)
 
             for start in range(0, dataset_size, self.batch_size):
@@ -766,7 +884,6 @@ class PPOTrainer:
                 batch_advantages = advantages[batch_indices]
                 batch_returns = returns[batch_indices]
 
-                # 前向传播（混合精度）
                 if self.use_amp:
                     with autocast():
                         logits, values = self.model(batch_states)
@@ -774,7 +891,6 @@ class PPOTrainer:
                         dist = Categorical(probs)
                         new_log_probs = dist.log_prob(batch_actions)
 
-                        # PPO损失
                         ratio = torch.exp(new_log_probs - batch_old_log_probs)
                         surr1 = ratio * batch_advantages
                         surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 + self.eps_clip) * batch_advantages
@@ -783,9 +899,8 @@ class PPOTrainer:
                         critic_loss = F.mse_loss(values.squeeze(), batch_returns)
                         entropy = dist.entropy().mean()
 
-                        loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy
+                        loss = actor_loss + 0.5 * critic_loss - 0.1 * entropy
 
-                    # 反向传播
                     self.optimizer.zero_grad()
                     self.scaler.scale(loss).backward()
                     self.scaler.unscale_(self.optimizer)
@@ -793,7 +908,6 @@ class PPOTrainer:
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:
-                    # 标准训练
                     logits, values = self.model(batch_states)
                     probs = torch.softmax(logits, dim=-1)
                     dist = Categorical(probs)
@@ -807,24 +921,17 @@ class PPOTrainer:
                     critic_loss = F.mse_loss(values.squeeze(), batch_returns)
                     entropy = dist.entropy().mean()
 
-                    loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy
+                    loss = actor_loss + 0.5 * critic_loss - 0.1 * entropy
 
                     self.optimizer.zero_grad()
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                     self.optimizer.step()
 
-        # 更新学习率
         self.scheduler.step()
-
-        # 清空缓冲区
         self.reset_buffer()
 
-        # 记录到TensorBoard
         self.writer.add_scalar('Loss/Total', loss.item(), self.episode_count)
-        self.writer.add_scalar('Loss/Actor', actor_loss.item(), self.episode_count)
-        self.writer.add_scalar('Loss/Critic', critic_loss.item(), self.episode_count)
-        self.writer.add_scalar('Loss/Entropy', entropy.item(), self.episode_count)
         self.writer.add_scalar('LR', self.scheduler.get_last_lr()[0], self.episode_count)
 
     def train(self, total_episodes=1000):
@@ -840,30 +947,26 @@ class PPOTrainer:
 
         with tqdm(total=total_episodes, desc="训练进度") as pbar:
             while self.episode_count < total_episodes:
-                # 收集数据
                 self.collect_trajectory(n_steps=self.buffer_size)
-
-                # 更新模型
                 self.update()
 
-                # 更新进度条
                 pbar.n = min(self.episode_count, total_episodes)
+                avg_exp = np.mean(self.recent_exp) if self.recent_exp else 0
                 pbar.set_postfix({
-                    'Best Exp': self.best_exp,
+                    'Best': self.best_exp,
+                    'Avg': f"{avg_exp:.0f}",
                     'LR': f"{self.scheduler.get_last_lr()[0]:.2e}"
                 })
                 pbar.refresh()
 
-                # 定期保存
                 if self.episode_count % 100 == 0:
                     self.save_model(f'checkpoint_{self.episode_count}.pth')
 
-        # 训练完成
         elapsed = time.time() - start_time
         print(f"\n训练完成！用时: {elapsed/60:.2f}分钟")
         print(f"最佳经验值: {self.best_exp}")
+        print(f"平均经验值: {np.mean(self.recent_exp):.0f}")
 
-        # 关闭TensorBoard
         self.writer.close()
 
     def save_model(self, filename):
@@ -886,30 +989,25 @@ class PPOTrainer:
         self.episode_count = checkpoint['episode_count']
 
 
-# ========== 主函数 ==========
 if __name__ == "__main__":
-    # 设置随机种子
     torch.manual_seed(42)
     np.random.seed(42)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(42)
 
-    # 设置设备
     device = setup_device()
 
-    # 创建训练器
     trainer = PPOTrainer(
         device=device,
-        lr=1e-4,
-        gamma=0.99,
-        eps_clip=0.2,
-        epochs=10,
-        batch_size=128,      # GPU可以处理更大的批次
+        lr=5e-4,
+        gamma=0.90,
+        eps_clip=0.3,
+        epochs=15,
+        batch_size=128,
         n_workers=4,
-        use_amp=True         # 启用混合精度训练
+        use_amp=True
     )
 
-    # 开始训练
     trainer.train(total_episodes=1000)
 
     print("\n" + "=" * 60)
