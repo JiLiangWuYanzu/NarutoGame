@@ -461,7 +461,7 @@ class GamePlaySystem:
             return False
 
         if amount % 100 != 0:
-            self.add_message("可一次性领完也可分批领", "error")
+            self.add_message("领取数量必须是100的倍数", "error")
             return False
 
         if amount > self.weekly_exp_quota:
@@ -697,7 +697,7 @@ class GamePlaySystem:
                 if conquered_only and neighbor not in self.conquered_tiles:
                     continue
 
-                # 检查是否是墙壁/障碍墙
+                # 检查是否是墙壁/障碍墙/边界墙
                 if tile.terrain_type == TerrainType.WALL or tile.terrain_type == TerrainType.BOUNDARY:
                     continue
 
@@ -744,7 +744,7 @@ class GamePlaySystem:
             for neighbor in self.get_neighbors(*current):
                 # 检查是否可通过
                 tile = self.hex_map.get(neighbor)
-                if not tile or tile.terrain_type == TerrainType.WALL:
+                if not tile or tile.terrain_type == TerrainType.WALL or tile.terrain_type == TerrainType.BOUNDARY:
                     continue
 
                 # 中间节点必须是已征服的（除非是目标节点）
@@ -767,9 +767,9 @@ class GamePlaySystem:
         if target in self.conquered_tiles:
             return -1  # 不允许
 
-        # 检查目标是否是墙壁
+        # 检查目标是否是墙壁或边界墙
         target_tile = self.hex_map.get(target)
-        if not target_tile or target_tile.terrain_type == TerrainType.WALL:
+        if not target_tile or target_tile.terrain_type == TerrainType.WALL or target_tile.terrain_type == TerrainType.BOUNDARY:
             return -1
 
         # 首先检查是否是直接相邻
@@ -831,6 +831,12 @@ class GamePlaySystem:
             self.add_message("目标已被征服！", "error")
             return False
 
+        # 检查目标是否是墙壁或边界墙
+        target_tile = self.hex_map.get(target)
+        if not target_tile or target_tile.terrain_type == TerrainType.WALL or target_tile.terrain_type == TerrainType.BOUNDARY:
+            self.add_message("无法传送到墙壁或边界！", "error")
+            return False
+
         # 检查是否与已征服地块相邻
         neighbors = self.get_neighbors(*target)
         has_conquered_neighbor = any(n in self.conquered_tiles for n in neighbors)
@@ -860,8 +866,8 @@ class GamePlaySystem:
             # 必须与已征服地块相邻
             neighbors = self.get_neighbors(*pos)
             if any(n in self.conquered_tiles for n in neighbors):
-                # 不能是墙壁
-                if tile.terrain_type != TerrainType.WALL:
+                # 不能是墙壁或边界墙
+                if tile.terrain_type != TerrainType.WALL and tile.terrain_type != TerrainType.BOUNDARY:
                     valid_targets.add(pos)
 
         return valid_targets
