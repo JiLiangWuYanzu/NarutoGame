@@ -697,8 +697,8 @@ class GamePlaySystem:
                 if conquered_only and neighbor not in self.conquered_tiles:
                     continue
 
-                # 检查是否是墙壁
-                if tile.terrain_type == TerrainType.WALL:
+                # 检查是否是墙壁/障碍墙
+                if tile.terrain_type == TerrainType.WALL or tile.terrain_type == TerrainType.BOUNDARY:
                     continue
 
                 tentative_g = g_score[current] + 1
@@ -791,6 +791,11 @@ class GamePlaySystem:
 
     def move_team(self, team: Team, target: Tuple[int, int]) -> bool:
         """移动队伍"""
+        # 检查当前位置必须已征服（核心规则）
+        if team.position not in self.conquered_tiles:
+            self.add_message("当前地块未征服，无法移动！", "error")
+            return False
+
         # 不能移动到已征服地块（新规则）
         if target in self.conquered_tiles:
             self.add_message("不能停留在已征服地块！", "error")
@@ -950,14 +955,23 @@ class GamePlaySystem:
         return True
 
     def next_day(self):
-        """进入下一天"""
         if self.current_day >= self.max_days:
+            # 游戏结束前，发放最后一周未领取的经验
+            if self.weekly_exp_quota > 0:
+                self.experience += self.weekly_exp_quota
+                self.add_message(f"游戏结束，自动发放剩余周经验：+{self.weekly_exp_quota}", "success")
+                self.weekly_exp_quota = 0
+                # 检查最后的升级
+                old_level = self.level
+                self.calculate_level()
+                if self.level > old_level:
+                    self.add_message(f"升级了！现在是 {self.level} 级", "success")
+                    self.check_team_unlock()
+
             self.game_state = GameState.GAME_OVER
             return
 
-        # 清空撤销历史（新的一天开始）
-        self.action_history.clear()
-
+        # 原有的代码继续...
         self.current_day += 1
 
         # 获取日期和星期

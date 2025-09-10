@@ -142,6 +142,108 @@ class ImprovedHexGameEnvironment:
         self.switch_action_tracking = {}  # 跟踪切换后的行动
         self.valid_actions_cache = {}
         self.reset()
+        self.conquest_frontier_cache = None
+        self.frontier_cache_state = None
+
+        self.daily_log = {} # 日志记录
+
+    def log_conquest(self, pos, tile_type, food_cost, exp_gain):
+        """记录征服行动"""
+        day = self.state['day']
+        if day not in self.daily_log:
+            self.daily_log[day] = {
+                'conquered_tiles': [],
+                'moves': [],
+                'food_spent_conquer': 0,
+                'food_spent_move': 0,
+                'exp_gained': 0,
+                'starting_food': self.state['food'] + food_cost,
+                'ending_food': self.state['food']
+            }
+
+        self.daily_log[day]['conquered_tiles'].append({
+            'position': pos,
+            'type': tile_type.name,
+            'food_cost': food_cost,
+            'exp_gain': exp_gain
+        })
+        self.daily_log[day]['food_spent_conquer'] += food_cost
+        self.daily_log[day]['exp_gained'] += exp_gain
+        self.daily_log[day]['ending_food'] = self.state['food']
+
+    def log_move(self, from_pos, to_pos, move_cost):
+        """记录移动行动"""
+        day = self.state['day']
+        if day not in self.daily_log:
+            self.daily_log[day] = {
+                'conquered_tiles': [],
+                'moves': [],
+                'food_spent_conquer': 0,
+                'food_spent_move': 0,
+                'exp_gained': 0,
+                'starting_food': self.state['food'] + move_cost,
+                'ending_food': self.state['food']
+            }
+
+        self.daily_log[day]['moves'].append({
+            'from': from_pos,
+            'to': to_pos,
+            'cost': move_cost
+        })
+        self.daily_log[day]['food_spent_move'] += move_cost
+        self.daily_log[day]['ending_food'] = self.state['food']
+
+    def format_episode_log(self):
+        """格式化整个episode的日志"""
+        log_lines = []
+        log_lines.append("\n" + "=" * 80)
+        log_lines.append("EPISODE DETAILED LOG")
+        log_lines.append("=" * 80)
+
+        for day in sorted(self.daily_log.keys()):
+            day_data = self.daily_log[day]
+
+            # 跳过没有行动的天
+            if not day_data['conquered_tiles'] and not day_data['moves']:
+                continue
+
+            log_lines.append(f"\n【Day {day}】")
+            log_lines.append(f"  起始粮草: {day_data.get('starting_food', 0):.0f}")
+
+            # 征服信息
+            if day_data['conquered_tiles']:
+                log_lines.append(f"  征服地块 ({len(day_data['conquered_tiles'])}个):")
+                for tile in day_data['conquered_tiles']:
+                    log_lines.append(f"    - {tile['position']}: {tile['type']} "
+                                     f"(耗粮:{tile['food_cost']}, 获经验:+{tile['exp_gain']})")
+
+            # 移动信息
+            if day_data['moves']:
+                log_lines.append(f"  移动 ({len(day_data['moves'])}次):")
+                for move in day_data['moves']:
+                    log_lines.append(f"    - 从{move['from']}到{move['to']} (耗粮:{move['cost']})")
+
+            # 汇总信息
+            log_lines.append(f"  本日消耗: 征服耗粮{day_data['food_spent_conquer']}, "
+                             f"移动耗粮{day_data['food_spent_move']}")
+            log_lines.append(f"  本日获得经验: +{day_data['exp_gained']}")
+            log_lines.append(f"  剩余粮草: {day_data.get('ending_food', 0):.0f}")
+
+        # 最终统计
+        total_conquered = sum(len(d['conquered_tiles']) for d in self.daily_log.values())
+        total_exp = self.state['experience']
+        total_food_spent = sum(d['food_spent_conquer'] + d['food_spent_move']
+                               for d in self.daily_log.values())
+
+        log_lines.append(f"\n【最终统计】")
+        log_lines.append(f"  总天数: {self.state['day']}")
+        log_lines.append(f"  总征服地块: {total_conquered}")
+        log_lines.append(f"  总经验: {total_exp}")
+        log_lines.append(f"  总消耗粮草: {total_food_spent:.0f}")
+        log_lines.append(f"  最终粮草: {self.state['food']:.0f}")
+        log_lines.append("=" * 80)
+
+        return "\n".join(log_lines)
 
     def _identify_key_positions(self):
         """识别地图上的关键位置"""
@@ -231,10 +333,9 @@ class ImprovedHexGameEnvironment:
             'weekly_exp_quota': 500,
             'weekly_exp_claimed': 0,
             'total_conquered': 1,
-            'reached_milestones': set(),  # 记录已达到的经验里程碑
-            'high_value_conquered': 0,  # 高价值地块征服数
-            'efficiency_score': 0,  # 效率分数
-            # 添加食物跟踪变量
+            'reached_milestones': set(),
+            'high_value_conquered': 0,
+            'efficiency_score': 0,
             'food_income_total': 0,
             'food_from_tents': 0,
             'food_spent_move': 0,
@@ -242,6 +343,7 @@ class ImprovedHexGameEnvironment:
             'move_attempts': 0,
             'conquer_attempts': 0
         }
+
         # 初始化历史记录（跨episode保持）
         if not hasattr(self, 'historical_best_exp'):
             self.historical_best_exp = 0
@@ -257,10 +359,24 @@ class ImprovedHexGameEnvironment:
             'next_day_actions': 0,
             'invalid_actions': 0
         }
+
         # 重置切换跟踪
         self.daily_switch_count = 0
         self.last_switch_team = -1
         self.switch_action_tracking = {}
+
+        # 重置日志
+        self.daily_log = {
+            1: {
+                'conquered_tiles': [],
+                'moves': [],
+                'food_spent_conquer': 0,
+                'food_spent_move': 0,
+                'exp_gained': 0,
+                'starting_food': 6800,
+                'ending_food': 6800
+            }
+        }
 
         self.valid_actions_cache = {}
         if not hasattr(self, 'historical_best_exp'):
@@ -494,21 +610,12 @@ class ImprovedHexGameEnvironment:
 
         # 检查移动到高价值目标的机会
         elif pos in self.state['conquered_tiles']:
-            reachable = self.get_reachable_tiles(team_idx)
+            reachable_data = self.get_reachable_tiles_fixed(team_idx)  # ✅ 新方法
 
-            for target_pos in reachable[:5]:  # 检查前5个目标
+            for target_pos, move_cost, move_type in reachable_data[:5]:  # 检查前5个目标
                 target_type = self.map_data[target_pos]
                 target_props = self.TERRAIN_PROPERTIES.get(target_type, {})
                 target_exp = target_props.get('exp_gain', 0)
-
-                # 计算移动成本
-                if target_pos in self.get_neighbors(*pos):
-                    move_cost = 40 if self.state['has_treasure_buff'] else 50
-                else:
-                    distance = self.hex_distance(pos[0], pos[1], target_pos[0], target_pos[1])
-                    move_cost = 30 + 10 * distance
-                    if self.state['has_treasure_buff']:
-                        move_cost = int(move_cost * 0.8)
 
                 if move_cost <= self.state['food']:
                     # 计算移动+征服的综合价值
@@ -544,47 +651,107 @@ class ImprovedHexGameEnvironment:
                 neighbors.append(neighbor)
         return neighbors
 
-    def get_reachable_tiles(self, team_idx):
-        """获取队伍可到达的所有地块（优化版）"""
+    def find_path_through_conquered(self, start: Tuple[int, int], target: Tuple[int, int]) -> Optional[
+        List[Tuple[int, int]]]:
+        """
+        使用BFS查找通过已征服地块到达目标的最短路径
+        返回路径列表，如果无法到达则返回None
+        """
+        if start == target:
+            return [start]
+
+        # BFS搜索
+        queue = deque([(start, [start])])
+        visited = {start}
+
+        while queue:
+            current_pos, path = queue.popleft()
+
+            # 检查所有邻居
+            for neighbor in self.get_neighbors(*current_pos):
+                if neighbor in visited:
+                    continue
+
+                # 如果是目标位置且未被征服，找到路径
+                if neighbor == target and neighbor not in self.state['conquered_tiles']:
+                    return path + [neighbor]
+
+                # 如果是已征服的地块，可以继续搜索
+                if neighbor in self.state['conquered_tiles'] and neighbor != target:
+                    visited.add(neighbor)
+                    queue.append((neighbor, path + [neighbor]))
+
+        return None  # 无法找到路径
+
+    def get_reachable_tiles_fixed(self, team_idx: int):
+        """获取队伍可到达的所有地块（修正版：只搜索征服边界）"""
+        import time
+        start_time = time.time()
+
         team = self.state['teams'][team_idx]
-        q, r = team['position']
+        current_pos = team['position']
         reachable = []
 
-        # 1. 相邻的未征服地块
-        for neighbor in self.get_neighbors(q, r):
-            if neighbor not in self.state['conquered_tiles'] and \
-               self.map_data.get(neighbor) != TerrainType.WALL:
-                reachable.append(neighbor)
+        # 当前位置必须已征服
+        if current_pos not in self.state['conquered_tiles']:
+            return reachable
 
-        # 2. 可跳跃到的地块（与已征服区域相邻的未征服地块）
-        max_jump_distance = 8  # 增加搜索范围
-        for pos in self.map_data:
-            if pos not in self.state['conquered_tiles'] and \
-               self.map_data[pos] != TerrainType.WALL:
-                dist = self.hex_distance(q, r, pos[0], pos[1])
-                if 2 <= dist <= max_jump_distance:
-                    if any(n in self.state['conquered_tiles'] for n in self.get_neighbors(pos[0], pos[1])):
-                        reachable.append(pos)
+        # 第一步：找出所有征服边界地块（与已征服地块相邻的未征服地块）
+        conquest_frontier = set()
+        for conquered_pos in self.state['conquered_tiles']:
+            for neighbor in self.get_neighbors(*conquered_pos):
+                if (neighbor not in self.state['conquered_tiles'] and
+                        self.map_data.get(neighbor) != TerrainType.WALL and
+                        self.map_data.get(neighbor) != TerrainType.BOUNDARY):
+                    conquest_frontier.add(neighbor)
 
-        # 按潜在经验值排序，优先高价值目标
-        def get_tile_value(pos):
+        #print(f"DEBUG: Found {len(conquest_frontier)} frontier tiles")
+
+        # 第二步：对每个边界地块，计算到达成本
+        for target in conquest_frontier:
+            # 检查是否直接相邻
+            if target in self.get_neighbors(*current_pos):
+                # 直接移动
+                cost = 50
+                if self.state['has_treasure_buff']:
+                    cost = int(cost * 0.8)
+                reachable.append((target, cost, "direct"))
+            else:
+                # 需要通过已征服地块路径
+                path = self.find_path_through_conquered(current_pos, target)
+                if path:
+                    path_length = len(path)
+                    cost = 30 + 10 * path_length
+                    if self.state['has_treasure_buff']:
+                        cost = int(cost * 0.8)
+                    reachable.append((target, cost, "path"))
+
+        # 按价值/成本比排序
+        def get_value_ratio(item):
+            pos, cost, _ = item
             tile_type = self.map_data[pos]
             props = self.TERRAIN_PROPERTIES.get(tile_type, {})
             exp_gain = props.get('exp_gain', 0)
 
-            # 给特殊地块额外权重
-            if tile_type in [TerrainType.BOSS_ZETSU, TerrainType.BOSS_KUSHINA]:
-                return exp_gain * 2
-            elif tile_type == TerrainType.TRAINING_GROUND:
-                return exp_gain * 1.5
-            elif tile_type == TerrainType.TENT:
-                return 300  # 帐篷也很重要
-            else:
-                return exp_gain
+            # 新增：距离惩罚
+            current_pos = team['position']
+            distance = self.hex_distance(*current_pos, *pos)
 
-        reachable.sort(key=get_tile_value, reverse=True)
+            # 加入连通性奖励
+            neighbors_conquered = sum(1 for n in self.get_neighbors(*pos)
+                                      if n in self.state['conquered_tiles'])
+            connectivity_bonus = neighbors_conquered * 20  # 每个已征服邻居+20分
 
-        # 返回前30个最高价值目标
+            # 综合评分
+            value = (exp_gain + connectivity_bonus) / (cost * (1 + distance * 0.1))
+            return value
+
+        reachable.sort(key=get_value_ratio, reverse=True)
+
+        elapsed = time.time() - start_time
+        if elapsed > 0.5:
+            print(f"WARNING: get_reachable_tiles_fixed took {elapsed:.3f}s")
+
         return reachable[:30]
 
     def step(self, action):
@@ -628,11 +795,11 @@ class ImprovedHexGameEnvironment:
 
         # 执行动作
         if action < 30:  # 移动动作
-            reachable = self.get_reachable_tiles(self.state['current_team'])
-            if action < len(reachable):
-                target = reachable[action]
+            reachable_data = self.get_reachable_tiles_fixed(self.state['current_team'])  # ✅ 新方法
+            if action < len(reachable_data):
+                target, expected_cost, move_type = reachable_data[action]
                 if target not in self.state['conquered_tiles']:
-                    reward = self.execute_move(self.state['current_team'], target)
+                    reward = self.execute_move_fixed(self.state['current_team'], target)  # ✅ 新方法
                     # 检查是否成功移动
                     if current_team['position'] != old_position:
                         self.episode_action_stats['successful_moves'] += 1
@@ -891,56 +1058,70 @@ class ImprovedHexGameEnvironment:
 
         return np.clip(total_reward, -5.0, 30.0)  # 扩大正向奖励范围
 
-    def execute_move(self, team_idx, target):
-        """执行移动（修正版）"""
+    def execute_move_fixed(self, team_idx: int, target: Tuple[int, int]) -> float:
+        """
+        执行移动（修正版）
+        """
         team = self.state['teams'][team_idx]
-        current = team['position']
+        current_pos = team['position']
 
+        # 基本检查
         if target in self.state['conquered_tiles']:
             return -0.5
 
-        if self.map_data.get(target) == TerrainType.WALL:
+        if self.map_data.get(target) in [TerrainType.WALL, TerrainType.BOUNDARY]:
             return -0.5
 
-        # 计算移动成本
-        if target in self.get_neighbors(*current):
-            # 相邻地块直接移动
-            cost = 50
-        else:
-            # 跳跃移动 - 必须目标与已征服区域相邻
-            if not any(n in self.state['conquered_tiles'] for n in self.get_neighbors(target[0], target[1])):
-                return -0.5
-            distance = self.hex_distance(current[0], current[1], target[0], target[1])
-            # 修正：步数包括自身（距离+1）
-            cost = 30 + 10 * (distance + 1)
+        if current_pos not in self.state['conquered_tiles']:
+            return -0.5
 
+        # 计算移动成本和路径
+        cost = 0
+        move_type = ""
+
+        # 检查是否是相邻移动
+        if target in self.get_neighbors(*current_pos):
+            cost = 50
+            move_type = "direct"
+        else:
+            # 寻找通过已征服地块的路径
+            path = self.find_path_through_conquered(current_pos, target)
+            if path is None:
+                return -0.5  # 无法到达
+
+            cost = 30 + 10 * len(path)
+            move_type = "path"
+
+        # 应用秘宝buff
         if self.state['has_treasure_buff']:
             cost = int(cost * 0.8)
 
+        # 检查是否有足够的粮草
         if cost > self.state['food']:
             return -0.3
 
-        # 执行移动并跟踪成本
+        # 执行移动
         self.state['food'] -= cost
-        self.state['food_spent_move'] += cost  # 跟踪移动成本
-        self.state['move_attempts'] += 1  # 跟踪移动次数
+        self.state['food_spent_move'] += cost
+        self.state['move_attempts'] += 1
+        self.log_move(current_pos, target, cost)
         team['position'] = target
 
-        # 基于目标潜在价值的移动奖励
+        # 计算移动奖励
         target_props = self.TERRAIN_PROPERTIES.get(self.map_data[target], {})
         potential_exp = target_props.get('exp_gain', 0)
 
-        # 根据经验潜力计算移动奖励
+        # 基础移动奖励
         if potential_exp >= 1000:
             move_reward = 2.0
         elif potential_exp >= 500:
-            move_reward = 1.0
+            move_reward = 1.5
         elif potential_exp >= 100:
-            move_reward = 0.5
+            move_reward = 1.0
         else:
-            move_reward = potential_exp / 500.0
+            move_reward = potential_exp / 200.0
 
-        # 特殊目标额外奖励
+        # 特殊地块额外奖励
         if self.map_data[target] in [TerrainType.BOSS_ZETSU, TerrainType.BOSS_KUSHINA]:
             move_reward += 2.0
         elif self.map_data[target] == TerrainType.TRAINING_GROUND:
@@ -948,10 +1129,64 @@ class ImprovedHexGameEnvironment:
         elif self.map_data[target] == TerrainType.TENT:
             move_reward += 0.5
 
-        # 距离成本（降低权重）
-        distance_penalty = (cost - 50) / 10000.0
+        # 路径移动的效率奖励（路径越短越好）
+        if move_type == "path":
+            path_efficiency = max(0.5, 1.0 - (cost - 80) / 200.0)  # 80是基准成本
+            move_reward *= path_efficiency
 
-        return move_reward - distance_penalty
+        # 成本惩罚（相对较小）
+        cost_penalty = min(cost / 1000.0, 0.5)  # 最大惩罚0.5
+
+        return move_reward - cost_penalty
+
+    def handle_move_action_fixed(self, action: int) -> float:
+        """
+        处理移动动作（修正版）
+        """
+        reachable = self.get_reachable_tiles_fixed(self.state['current_team'])
+
+        if action < len(reachable):
+            target, expected_cost, move_type = reachable[action]
+
+            # 记录移动前状态用于验证
+            old_position = self.state['teams'][self.state['current_team']]['position']
+            old_food = self.state['food']
+
+            reward = self.execute_move_fixed(self.state['current_team'], target)
+
+            # 验证移动是否成功
+            new_position = self.state['teams'][self.state['current_team']]['position']
+            if new_position != old_position:
+                # 移动成功，记录统计信息
+                actual_cost = old_food - self.state['food']
+                return reward
+            else:
+                # 移动失败
+                return -0.5
+        else:
+            # 无效的移动动作
+            return -0.2
+
+    def get_valid_move_actions_fixed(self) -> List[int]:
+        """
+        获取有效的移动动作（修正版）
+        """
+        current_team = self.state['teams'][self.state['current_team']]
+
+        # 只有在已征服地块上才能移动
+        if current_team['position'] not in self.state['conquered_tiles']:
+            return []
+
+        reachable = self.get_reachable_tiles_fixed(self.state['current_team'])
+
+        # 转换为动作索引
+        valid_moves = []
+        for i, (target, cost, move_type) in enumerate(reachable):
+            if i < 30:  # 限制在前30个动作
+                if cost <= self.state['food']:  # 确保有足够粮草
+                    valid_moves.append(i)
+
+        return valid_moves
 
     def execute_conquer(self, team_idx):
         """执行征服"""
@@ -988,6 +1223,8 @@ class ImprovedHexGameEnvironment:
         self.state['experience'] += exp_gain
         self.state['conquered_tiles'].add(pos)
         self.state['total_conquered'] += 1
+        # 记录征服日志
+        self.log_conquest(pos, tile_type, food_cost, exp_gain)
 
         self.state['level'] = 1 + self.state['experience'] // 100
 
@@ -1177,6 +1414,17 @@ class ImprovedHexGameEnvironment:
 
         # 执行日期推进
         self.state['day'] += 1
+        # 初始化新一天的日志
+        if self.state['day'] not in self.daily_log:
+            self.daily_log[self.state['day']] = {
+                'conquered_tiles': [],
+                'moves': [],
+                'food_spent_conquer': 0,
+                'food_spent_move': 0,
+                'exp_gained': 0,
+                'starting_food': self.state['food'],
+                'ending_food': self.state['food']
+            }
 
         # 清理切换追踪
         switch_penalty = 0
@@ -1285,9 +1533,11 @@ class ImprovedHexGameEnvironment:
 
         # 移动动作
         if current_team['position'] in self.state['conquered_tiles']:
-            reachable = self.get_reachable_tiles(self.state['current_team'])
-            for i in range(min(len(reachable), 30)):
-                valid.append(i)
+            reachable_data = self.get_reachable_tiles_fixed(self.state['current_team'])  # ✅ 新方法
+            for i in range(min(len(reachable_data), 30)):
+                target, cost, move_type = reachable_data[i]
+                if cost <= self.state['food']:  # 确保有足够粮草
+                    valid.append(i)
 
         # 征服动作
         if current_team['position'] not in self.state['conquered_tiles'] and \
@@ -1372,17 +1622,17 @@ class ImprovedHexGameEnvironment:
                     # 如果没有相邻的，检查是否能跳跃到有价值的地块
                     if not has_opportunity and self.state['food'] >= 40:
                         # 简化检查：只要有可达的未征服地块就认为有机会
-                        reachable = self.get_reachable_tiles(team_idx)
+                        reachable = self.get_reachable_tiles_fixed(team_idx)
                         if reachable and len(reachable) > 0:
                             # 检查最近的几个目标
                             for target in reachable[:3]:
-                                if target in self.get_neighbors(*pos):
-                                    move_cost = 50 if not self.state['has_treasure_buff'] else 40
-                                else:
-                                    distance = self.hex_distance(pos[0], pos[1], target[0], target[1])
-                                    move_cost = 30 + 10 * (distance + 1)  # 包括自身
-                                    if self.state['has_treasure_buff']:
-                                        move_cost = int(move_cost * 0.8)
+                                reachable_data = self.get_reachable_tiles_fixed(team_idx)
+                                if reachable_data and len(reachable_data) > 0:
+                                    # 检查最近的几个目标
+                                    for target_pos, move_cost, move_type in reachable_data[:3]:
+                                        if move_cost <= self.state['food']:
+                                            has_opportunity = True
+                                            break
 
                                 if move_cost <= self.state['food']:
                                     has_opportunity = True
@@ -1627,6 +1877,7 @@ class ImprovedHexGameDQNTrainer:
         self.losses = []
         self.best_experience = 0
 
+
     def select_action(self, state, training=True):
         valid_actions = self.env.get_valid_actions()
 
@@ -1644,9 +1895,9 @@ class ImprovedHexGameDQNTrainer:
 
                     for action in non_next_day:
                         if action < 30:  # 移动动作
-                            reachable = self.env.get_reachable_tiles(self.env.state['current_team'])
-                            if action < len(reachable):
-                                target_pos = reachable[action]
+                            reachable_data = self.env.get_reachable_tiles_fixed(self.env.state['current_team'])  # ✅ 新方法
+                            if action < len(reachable_data):
+                                target_pos, cost, move_type = reachable_data[action]
                                 target_exp = self.env.TERRAIN_PROPERTIES.get(
                                     self.env.map_data[target_pos], {}
                                 ).get('exp_gain', 0)
@@ -1923,6 +2174,14 @@ class ImprovedHexGameDQNTrainer:
 
                 if done:
                     break
+            # 打印详细日志（前10个episode或每100个episode打印一次）
+            if episode < 10 or (episode + 1) % 100 == 0:
+                print(f"\n{'=' * 80}")
+                print(f"Episode {episode + 1} 详细日志")
+                print(self.env.format_episode_log())
+                print(f"Episode总奖励: {episode_reward:.2f}")
+                print(f"Episode总步数: {episode_steps}")
+                print(f"{'=' * 80}\n")
 
             # Episode结束后的分析
             final_exp = self.env.state['experience']
