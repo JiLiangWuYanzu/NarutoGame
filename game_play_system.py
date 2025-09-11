@@ -1452,15 +1452,9 @@ class GamePlaySystem:
             self.next_day()
 
         elif action == "领取经验":
-            if self.ai_mode:
-                # AI模式：直接领取，不打开界面
-                if self.weekly_exp_quota > 0 and self.weekly_claim_count < 5:
-                    amount = min(100, self.weekly_exp_quota)
-                    self.claim_weekly_exp(amount)
-            else:
-                # 人类玩家模式：打开界面
-                if self.game_state == GameState.PLAYING:
-                    self.game_state = GameState.WEEKLY_EXP_CLAIM
+            # 直接打开界面，不区分模式
+            if self.game_state == GameState.PLAYING:
+                self.game_state = GameState.WEEKLY_EXP_CLAIM
 
         elif action == "飞雷神":
             if self.thunder_god_items > 0:
@@ -1876,16 +1870,9 @@ class GamePlaySystem:
         elif key == pygame.K_w:
             # 打开周经验界面 - AI模式下直接领取
             print("按下W键 - 打开周经验界面")  # 调试信息
-            if self.ai_mode:
-                # AI模式：直接领取，不打开界面
-                if self.weekly_exp_quota > 0 and self.weekly_claim_count < 5:
-                    amount = min(100, self.weekly_exp_quota)
-                    self.claim_weekly_exp(amount)
-            else:
-                # 人类玩家模式：打开界面
-                if self.game_state == GameState.PLAYING:
-                    self.show_save_load_menu = False
-                    self.game_state = GameState.WEEKLY_EXP_CLAIM
+            if self.game_state == GameState.PLAYING:
+                self.show_save_load_menu = False
+                self.game_state = GameState.WEEKLY_EXP_CLAIM
 
         elif key == pygame.K_t:
             # 切换飞雷神模式
