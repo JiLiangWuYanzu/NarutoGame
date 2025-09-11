@@ -19,6 +19,23 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+# 在文件开头的import语句后面添加
+import torch
+
+# 添加CUDA检查
+print("=" * 70)
+print("检查CUDA环境...")
+print(f"PyTorch版本: {torch.__version__}")
+print(f"CUDA是否可用: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"CUDA版本: {torch.version.cuda}")
+    print(f"GPU设备: {torch.cuda.get_device_name(0)}")
+else:
+    print("⚠️ CUDA不可用！将使用CPU训练（速度较慢）")
+    print("建议重新安装支持CUDA的PyTorch：")
+    print("pip uninstall torch")
+    print("pip install torch --index-url https://download.pytorch.org/whl/cu118")
+print("=" * 70)
 
 # 导入游戏核心模块
 from game_play_system import GamePlaySystem, Team, GameState, TerrainType
@@ -56,7 +73,7 @@ class HexGameEnv(gym.Env):
 
         # 动作空间 - 修改：[动作类型0-7, 目标选择0-29]
         # 增加目标选择空间以分别处理相邻和跳跃目标
-        self.action_space = spaces.MultiDiscrete([8, 30])
+        self.action_space = spaces.MultiDiscrete([7, 30])
 
         # 观察空间 - 扩展到250维以包含更多信息
         self.observation_space = spaces.Box(
@@ -631,11 +648,11 @@ class HexGameEnv(gym.Env):
         }
 
     def step(self, action):
-        """执行动作 - V7修复版"""
+        """执行动作 - V7修复版（删除action_type 0）"""
         self.current_step += 1
 
-        # 解析动作
-        action_type = int(action[0])
+        # 解析动作 - 现在action_type是0-6，对应原来的1-7
+        action_type = int(action[0]) + 1  # 转换为1-7
         target_idx = int(action[1])
 
         # 初始化
@@ -651,6 +668,7 @@ class HexGameEnv(gym.Env):
         old_team_spread = self._calculate_team_spread()
         old_team_index = self.game.current_team_index
         old_weekly_exp = self.game.weekly_exp_quota
+        old_game_state = self.game.game_state
 
         # 获取合法动作
         valid_actions = self._get_valid_actions()
@@ -665,17 +683,11 @@ class HexGameEnv(gym.Env):
         self.last_action_type = action_type
 
         try:
-            # ========== 执行动作 ==========
-            if action_type == 0:  # 无效动作
-                reward += self.reward_weights['invalid_action']
-                self.invalid_action_counter += 1
-                self.consecutive_invalid += 1
-
-            elif action_type == 1:  # 相邻移动
+            # ========== 执行动作 - 现在从1开始 ==========
+            if action_type == 1:  # 相邻移动（原action_type 1）
                 if self.game.teams and valid_actions['adjacent_targets']:
                     team = self.game.teams[self.game.current_team_index]
 
-                    # 确保索引有效
                     if target_idx < len(valid_actions['adjacent_targets']):
                         target_pos = valid_actions['adjacent_targets'][target_idx]
                     else:
@@ -688,17 +700,14 @@ class HexGameEnv(gym.Env):
                             self.daily_actions_done += 1
                             self.consecutive_invalid = 0
 
-                            # 首次移动奖励
                             if not self.has_moved:
                                 reward += self.reward_weights['first_move']
                                 self.has_moved = True
 
-                            # 探索奖励
                             if target_pos not in self.exploration_history:
                                 reward += self.reward_weights['exploration']
                                 self.exploration_history.add(target_pos)
 
-                            # 高价值目标奖励
                             tile_value = self._calculate_tile_value(target_pos, self.game.current_day)
                             if tile_value > 100:
                                 reward += self.reward_weights['high_value_target']
@@ -717,7 +726,7 @@ class HexGameEnv(gym.Env):
                     self.stuck_counter += 1
                     self.consecutive_invalid += 1
 
-            elif action_type == 2:  # 跳跃移动
+            elif action_type == 2:  # 跳跃移动（原action_type 2）
                 if self.game.teams and valid_actions['jump_targets']:
                     team = self.game.teams[self.game.current_team_index]
 
@@ -733,9 +742,8 @@ class HexGameEnv(gym.Env):
                             self.daily_actions_done += 1
                             self.consecutive_invalid = 0
 
-                            # 距离奖励
                             distance = (abs(target_pos[0] - old_position[0]) +
-                                       abs(target_pos[1] - old_position[1]))
+                                        abs(target_pos[1] - old_position[1]))
                             reward += distance * 0.5
 
                             if not self.has_moved:
@@ -746,7 +754,6 @@ class HexGameEnv(gym.Env):
                                 reward += self.reward_weights['exploration'] * 1.5
                                 self.exploration_history.add(target_pos)
 
-                            # 高价值目标额外奖励
                             tile_value = self._calculate_tile_value(target_pos, self.game.current_day)
                             if tile_value > 150:
                                 reward += self.reward_weights['high_value_target'] * 1.5
@@ -764,25 +771,21 @@ class HexGameEnv(gym.Env):
                     reward += self.reward_weights['invalid_action'] * 0.1
                     self.consecutive_invalid += 1
 
-            elif action_type == 3:  # 征服当前地块
+            elif action_type == 3:  # 征服当前地块（原action_type 3）
                 if self.game.teams:
                     team = self.game.teams[self.game.current_team_index]
 
-                    # 检查是否可以征服
                     if team.position in self.game.conquered_tiles:
-                        # 已征服的地块，不执行征服，给予惩罚
                         reward += self.reward_weights['invalid_action'] * 2
                         self.invalid_action_counter += 1
                         self.consecutive_invalid += 1
                     elif not valid_actions['can_conquer']:
-                        # 不满足征服条件，不执行征服
                         reward += self.reward_weights['invalid_action']
                         self.invalid_action_counter += 1
                         self.consecutive_invalid += 1
                         if not valid_actions['has_action_points']:
                             reward += self.reward_weights['no_action_points']
                     else:
-                        # 可以征服，执行征服
                         old_treasures = len(self.game.treasures_conquered)
                         success = self.game.conquer_tile(team)
 
@@ -791,7 +794,6 @@ class HexGameEnv(gym.Env):
                             self.daily_actions_done += 1
                             self.consecutive_invalid = 0
 
-                            # 更新队伍征服统计
                             if self.game.current_team_index not in self.daily_team_conquest:
                                 self.daily_team_conquest[self.game.current_team_index] = 0
                             self.daily_team_conquest[self.game.current_team_index] += 1
@@ -800,37 +802,35 @@ class HexGameEnv(gym.Env):
                                 self.total_team_conquest[self.game.current_team_index] = 0
                             self.total_team_conquest[self.game.current_team_index] += 1
 
-                            # 特殊地块奖励
                             tile = self.game.hex_map.get(team.position)
                             if tile:
-                                terrain_str = str(tile.terrain_type.value) if hasattr(tile.terrain_type, 'value') else str(tile.terrain_type)
+                                terrain_str = str(tile.terrain_type.value) if hasattr(tile.terrain_type,
+                                                                                      'value') else str(
+                                    tile.terrain_type)
 
                                 if 'TREASURE' in terrain_str:
                                     reward += self.reward_weights['treasure']
-                                    # 集齐8个秘宝的额外奖励
                                     if len(self.game.treasures_conquered) == 8:
                                         reward += self.reward_weights['treasure_complete']
                                 elif 'BOSS' in terrain_str:
                                     reward += self.reward_weights['boss_defeat']
                                 elif 'TENT' in terrain_str:
                                     reward += self.reward_weights['tent_capture']
-                                    # 早期帐篷额外奖励
                                     if self.game.current_day <= 20:
                                         reward += self.reward_weights['tent_early_bonus']
                                 elif '历练' in terrain_str:
-                                    reward += 30  # 520经验0消耗
+                                    reward += 30
                                 elif 'BLACK_MARKET' in terrain_str:
                                     reward += 10
 
                             self.idle_steps = 0
                             self.stuck_counter = 0
                         else:
-                            # 征服失败（其他原因）
                             reward += self.reward_weights['invalid_action'] * 0.5
                             self.invalid_action_counter += 1
                             self.consecutive_invalid += 1
 
-            elif action_type == 4:  # 使用飞雷神
+            elif action_type == 4:  # 使用飞雷神（原action_type 4）
                 if valid_actions['thunder_targets']:
                     team = self.game.teams[self.game.current_team_index]
 
@@ -842,11 +842,10 @@ class HexGameEnv(gym.Env):
                     if target_pos:
                         success = self.game.use_thunder_god(team, target_pos)
                         if success:
-                            reward += 15.0  # 飞雷神使用奖励
+                            reward += 15.0
                             self.daily_actions_done += 1
                             self.consecutive_invalid = 0
 
-                            # 高价值目标额外奖励
                             tile_value = self._calculate_tile_value(target_pos, self.game.current_day)
                             if tile_value > 200:
                                 reward += 20
@@ -864,24 +863,22 @@ class HexGameEnv(gym.Env):
                     reward += self.reward_weights['invalid_action'] * 0.2
                     self.consecutive_invalid += 1
 
-            elif action_type == 5:  # 切换队伍
+            elif action_type == 5:  # 切换队伍（原action_type 5）
                 if valid_actions['can_switch']:
                     current_team = self.game.teams[self.game.current_team_index]
                     next_index = (self.game.current_team_index + 1) % len(self.game.teams)
 
-                    # 基于机会值判断切换价值
                     current_opportunity = valid_actions['team_opportunities'].get(self.game.current_team_index, 0)
                     next_opportunity = valid_actions['team_opportunities'].get(next_index, 0)
 
-                    # 智能切换判断
                     if current_team.action_points == 0 and self.game.teams[next_index].action_points > 0:
                         reward += self.reward_weights['smart_switch']
-                    elif next_opportunity > current_opportunity * 1.5:  # 下一个队伍机会值明显更高
+                    elif next_opportunity > current_opportunity * 1.5:
                         reward += self.reward_weights['smart_switch'] * 0.5
-                    elif current_opportunity < 1 and next_opportunity > 10:  # 当前队伍被困，下一个队伍有机会
+                    elif current_opportunity < 1 and next_opportunity > 10:
                         reward += self.reward_weights['smart_switch']
                     else:
-                        reward += -0.5  # 不必要的切换
+                        reward += -0.5
 
                     self.game.current_team_index = next_index
                     self.consecutive_invalid = 0
@@ -889,9 +886,8 @@ class HexGameEnv(gym.Env):
                     reward += self.reward_weights['invalid_action'] * 0.1
                     self.consecutive_invalid += 1
 
-            elif action_type == 6:  # 领取经验
+            elif action_type == 6:  # 领取经验（原action_type 6）
                 if valid_actions['can_claim_exp']:
-                    # 根据target_idx决定领取金额
                     amounts = [100, 200, 300, 400, 500]
                     amount_idx = min(target_idx % 5, len(amounts) - 1)
                     amount = min(amounts[amount_idx], self.game.weekly_exp_quota)
@@ -900,46 +896,37 @@ class HexGameEnv(gym.Env):
                     success = self.game.claim_weekly_exp(amount)
 
                     if success:
-                        # 基础奖励
                         reward += 0.1 * (amount / 100)
 
-                        # 早期领取奖励（周一到周三）
                         day_of_week = self.game.get_day_of_week(self.game.current_day)
                         if day_of_week <= 3:
                             reward += self.reward_weights['weekly_exp_early']
 
-                        # 升级奖励
                         if self.game.level > old_level:
                             reward += self.reward_weights['level_up'] * (self.game.level - old_level)
 
                         self.consecutive_invalid = 0
 
-                    # 确保回到游戏状态
                     if self.game.game_state == GameState.WEEKLY_EXP_CLAIM:
                         self.game.game_state = GameState.PLAYING
                 else:
                     reward += self.reward_weights['invalid_action']
                     self.consecutive_invalid += 1
 
-            elif action_type == 7:  # 下一天
+            elif action_type == 7:  # 下一天（原action_type 7）
                 if valid_actions['can_next_day']:
-                    # 判断是否明智地进入下一天
                     if valid_actions['should_next_day']:
-                        # 应该进入下一天
                         reward += self.reward_weights['smart_next_day']
                     else:
-                        # 浪费了行动点
                         wasted_points = valid_actions['total_action_points']
                         reward += self.reward_weights['waste_action'] * min(wasted_points, 5)
 
-                    # 检查是否完全没有移动
                     if not self.has_moved and self.game.current_day <= 10:
                         reward += self.reward_weights['stuck_penalty']
 
-                    # 检查周日未领取周经验
                     day_of_week = self.game.get_day_of_week(self.game.current_day)
-                    if day_of_week == 6 and self.game.weekly_exp_quota > 0:  # 周六晚上
-                        reward += self.reward_weights['weekly_exp_late']  # 即将被动发放
+                    if day_of_week == 6 and self.game.weekly_exp_quota > 0:
+                        reward += self.reward_weights['weekly_exp_late']
 
                     old_week = self.game.get_week_number(self.game.current_day)
                     self.game.next_day()
@@ -957,10 +944,12 @@ class HexGameEnv(gym.Env):
 
         except Exception as e:
             print(f"动作执行错误: {e}")
+            import traceback
+            traceback.print_exc()
             reward += self.reward_weights['invalid_action']
             self.consecutive_invalid += 1
 
-        # 计算增量奖励
+        # 计算增量奖励（保持原有逻辑）
         exp_gain = self.game.experience - self.last_exp
         if exp_gain > 0:
             reward += exp_gain * self.reward_weights['exp_gain']
@@ -969,16 +958,13 @@ class HexGameEnv(gym.Env):
         if level_gain > 0:
             reward += level_gain * self.reward_weights['level_up']
 
-        # 征服进度奖励
         conquered_gain = len(self.game.conquered_tiles) - old_conquered
         if conquered_gain > 0:
             reward += conquered_gain * 5.0
-            # 里程碑奖励
             total_conquered = len(self.game.conquered_tiles)
             if total_conquered in [10, 25, 50, 100, 150, 200]:
                 reward += 50.0
 
-        # 多队伍协作奖励
         if len(self.game.teams) > 1:
             teams_with_conquest = sum(1 for count in self.daily_team_conquest.values() if count > 0)
             if teams_with_conquest > 1:
@@ -989,36 +975,44 @@ class HexGameEnv(gym.Env):
                 reward += self.reward_weights['team_spread'] * (new_spread - old_team_spread)
             self.last_team_spread = new_spread
 
-        # 效率奖励
         if old_food > self.game.food and exp_gain > 0:
             efficiency = exp_gain / (old_food - self.game.food + 1)
             reward += efficiency * self.reward_weights['efficiency']
 
-        # 进度奖励
         if self.game.current_day > 0 and self.has_moved:
             progress_rate = len(self.game.conquered_tiles) / (self.game.current_day + 1)
             reward += progress_rate * self.reward_weights['progress_bonus']
 
-        # 检查卡住
         if len(self.position_history) > 10:
             recent_positions = self.position_history[-10:]
             if len(set(recent_positions)) <= 2:
                 self.stuck_counter += 1
                 reward += self.reward_weights['stuck_penalty'] * (self.stuck_counter / 10.0)
 
-        # 连续无效动作惩罚
-        if self.consecutive_invalid > 5:
+        # ========== 终止条件检查（添加调试信息） ==========
+
+        # 连续无效动作检查
+        if self.consecutive_invalid > 15:
             reward += self.reward_weights['stuck_penalty']
-            if self.consecutive_invalid > 10:
-                # 严重卡住，考虑提前结束
+            if self.consecutive_invalid > 30:  # 提高到30
+                print(f"DEBUG: 连续无效动作触发truncated - consecutive_invalid={self.consecutive_invalid}")
                 truncated = True
                 reward += self.reward_weights['game_over'] * 0.5
 
-        # 检查终止条件
+        # 检查游戏状态变化
+        if old_game_state != self.game.game_state:
+            print(f"DEBUG: 游戏状态变化 {old_game_state} -> {self.game.game_state}")
+
+        # 检查游戏是否结束
         if self.game.game_state == GameState.GAME_OVER:
+            print(f"DEBUG: 检测到GAME_OVER状态")
+            print(f"  当前天数: {self.game.current_day}/{self.game.max_days}")
+            print(f"  粮草: {self.game.food}")
+            print(f"  队伍数: {len(self.game.teams)}")
             terminated = True
+
             if self.game.current_day >= self.game.max_days:
-                # 正常结束
+                print(f"DEBUG: 正常完成91天")
                 if self.has_moved:
                     final_bonus = 0
                     final_bonus += self.game.level * 2.0
@@ -1029,12 +1023,34 @@ class HexGameEnv(gym.Env):
                     reward += min(final_bonus, self.reward_weights['completion_bonus'])
                 else:
                     reward += self.reward_weights['game_over']
+            else:
+                print(f"DEBUG: 非正常结束 - 可能是游戏内部问题")
+                # 检查可能的原因
+                if self.game.food <= 0:
+                    print(f"  原因: 粮草耗尽")
+                elif not self.game.teams:
+                    print(f"  原因: 没有队伍")
+                else:
+                    print(f"  原因: 未知")
 
-        # 步数限制
+        # 步数限制检查
         if self.current_step >= self.max_steps:
+            print(f"DEBUG: 达到最大步数 {self.current_step}/{self.max_steps}")
             truncated = True
             if not self.has_moved:
                 reward += self.reward_weights['game_over']
+
+        # 最终调试输出
+        if terminated or truncated:
+            print(f"DEBUG: Episode结束")
+            print(f"  terminated={terminated}, truncated={truncated}")
+            print(f"  步数: {self.current_step}/{self.max_steps}")
+            print(f"  天数: {self.game.current_day}/{self.game.max_days}")
+            print(f"  连续无效: {self.consecutive_invalid}")
+            print(f"  游戏状态: {self.game.game_state}")
+            print(f"  粮草: {self.game.food}")
+            print(f"  征服: {len(self.game.conquered_tiles)}")
+            print(f"  等级: {self.game.level}")
 
         # 更新镜头（如果需要）
         if self.render_mode == "human" and self.game.teams:
@@ -1312,11 +1328,30 @@ def make_env():
 
 
 def train_ppo_agent(
-    total_timesteps=1000000,
-    n_envs=1,
-    save_path="hex_game_ppo_v7",
-    log_path="./logs/"
+        total_timesteps=1000000,
+        n_envs=1,  # 保持默认值1，可以通过命令行参数覆盖
+        save_path="hex_game_ppo_v7",
+        log_path="./logs/"
 ):
+    """训练PPO智能体 - V7版本"""
+
+    # 检查设备
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # 如果使用GPU，建议增加并行环境数
+    if device == 'cuda' and n_envs == 1:
+        print("💡 提示：检测到GPU，建议使用 --n_envs 4 或更多来充分利用GPU性能")
+
+    print("=" * 70)
+    print("PPO训练 V7 - 修复征服逻辑、观察空间、队伍切换等问题")
+    print("=" * 70)
+    print(f"设备: {device.upper()}")  # 修改这一行
+    if device == 'cuda':  # 添加GPU信息
+        print(f"GPU型号: {torch.cuda.get_device_name(0)}")
+        print(f"显存大小: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+    print(f"并行环境数: {n_envs}")
+    print(f"总训练步数: {total_timesteps}")
+    print("=" * 70)
     """训练PPO智能体 - V7版本"""
 
     print("=" * 70)
@@ -1335,21 +1370,21 @@ def train_ppo_agent(
     model = PPO(
         "MlpPolicy",
         env,
-        learning_rate=5e-4,  # 降低学习率提高稳定性
+        learning_rate=5e-4,
         n_steps=512,
         batch_size=64,
         n_epochs=10,
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.03,  # 降低熵系数，减少随机探索
+        ent_coef=0.03,
         vf_coef=0.5,
         max_grad_norm=0.5,
         tensorboard_log=log_path,
         verbose=0,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
+        device=device,  # 确保这里使用的是上面定义的device变量
         policy_kwargs=dict(
-            net_arch=[dict(pi=[512, 512, 256], vf=[512, 512, 256])]  # 增大网络
+            net_arch=[dict(pi=[512, 512, 256], vf=[512, 512, 256])]
         )
     )
 
@@ -1451,7 +1486,7 @@ def test_agent(model_path, n_episodes=10, render=False):
         # 动作统计
         action_counts = Counter()
         action_names = {
-            0: "等待", 1: "相邻移动", 2: "跳跃移动", 3: "征服",
+            1: "相邻移动", 2: "跳跃移动", 3: "征服",
             4: "飞雷神", 5: "切换队伍", 6: "领取经验", 7: "下一天"
         }
 
