@@ -45,11 +45,12 @@ class GameState(Enum):
 class GamePlaySystem:
     """游戏玩法系统主类"""
 
-    def __init__(self, screen, width, height):
+    def __init__(self, screen, width, height, ai_mode=False):
         self.screen = screen
         self.width = width
         self.height = height
         self.style = StyleConfig()
+        self.ai_mode = ai_mode  # 新增：AI模式标志
 
         # 初始化字体管理器
         self.font_manager = get_font_manager()
@@ -99,7 +100,7 @@ class GamePlaySystem:
         self.save_load_buttons = []  # 初始化存档按钮列表
 
         # 【重要：先初始化相机和视图相关属性】
-        self.zoom = 1.0
+        self.zoom = 0.5
         self.hex_size = 30
         # 先给相机一个默认值，稍后会在init_first_team中更新
         self.camera_x = width // 2
@@ -1451,9 +1452,15 @@ class GamePlaySystem:
             self.next_day()
 
         elif action == "领取经验":
-            # 只在PLAYING状态下才打开周经验界面
-            if self.game_state == GameState.PLAYING:
-                self.game_state = GameState.WEEKLY_EXP_CLAIM
+            if self.ai_mode:
+                # AI模式：直接领取，不打开界面
+                if self.weekly_exp_quota > 0 and self.weekly_claim_count < 5:
+                    amount = min(100, self.weekly_exp_quota)
+                    self.claim_weekly_exp(amount)
+            else:
+                # 人类玩家模式：打开界面
+                if self.game_state == GameState.PLAYING:
+                    self.game_state = GameState.WEEKLY_EXP_CLAIM
 
         elif action == "飞雷神":
             if self.thunder_god_items > 0:
@@ -1803,6 +1810,9 @@ class GamePlaySystem:
             elif pygame.K_1 <= key <= pygame.K_5:
                 amount = (key - pygame.K_1 + 1) * 100
                 self.claim_weekly_exp(amount)
+                # AI模式下自动关闭界面
+                if self.ai_mode and self.weekly_exp_quota == 0:
+                    self.game_state = GameState.PLAYING
             return
 
         # 如果在存档菜单，ESC关闭
@@ -1864,11 +1874,18 @@ class GamePlaySystem:
             self.next_day()
 
         elif key == pygame.K_w:
-            # 打开周经验界面 - 确保关闭存档菜单
+            # 打开周经验界面 - AI模式下直接领取
             print("按下W键 - 打开周经验界面")  # 调试信息
-            if self.game_state == GameState.PLAYING:
-                self.show_save_load_menu = False
-                self.game_state = GameState.WEEKLY_EXP_CLAIM
+            if self.ai_mode:
+                # AI模式：直接领取，不打开界面
+                if self.weekly_exp_quota > 0 and self.weekly_claim_count < 5:
+                    amount = min(100, self.weekly_exp_quota)
+                    self.claim_weekly_exp(amount)
+            else:
+                # 人类玩家模式：打开界面
+                if self.game_state == GameState.PLAYING:
+                    self.show_save_load_menu = False
+                    self.game_state = GameState.WEEKLY_EXP_CLAIM
 
         elif key == pygame.K_t:
             # 切换飞雷神模式
@@ -1895,6 +1912,7 @@ class GamePlaySystem:
             print(f"队伍数量: {len(self.teams)}")
             print(f"撤销历史: {len(self.action_history)} 条记录")
             print(f"存档菜单: {self.show_save_load_menu}")
+            print(f"AI模式: {self.ai_mode}")
             if self.teams:
                 team = self.teams[self.current_team_index]
                 print(f"当前队伍位置: {team.position}")
